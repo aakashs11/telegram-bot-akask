@@ -1,0 +1,6 @@
+openai==1.55.3
+python-telegram-bot==21.8
+flask==2.3.3
+functions_framework
+Flask
+python-telegram-bot
