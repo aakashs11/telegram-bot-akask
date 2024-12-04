@@ -318,7 +318,19 @@ def classify_intent(query):
 # Handlers for Telegram
 async def start(update: Update, context: CallbackContext):
     user = update.effective_user
-    await update.message.reply_text(f"Hi {user.first_name}! I'm a bot powered by OpenAI. Ask me anything!")
+    await update.message.reply_text(f"""Hi {user.first_name}! 
+Hello! I'm Akask.ai, your AI-powered study buddy, here to assist with your educational needs. Here's how I can help:
+
+📚 Class Notes: Access notes for classes 10-12.
+🤔 General Doubts: Get answers to your questions across various subjects.
+
+Coming Soon:
+🧠 Subject-Specific Assistance: Detailed help tailored to each subject.
+🎥 YouTube Video Links: Curated educational videos to enhance your learning.
+
+💬 Tip: Talk to me in normal, simple language—no need to be formal! I'm here to make learning easy and fun for you. 😊
+
+Feel free to start the conversation!""")
 
 async def handle_message(update: Update, context: CallbackContext):
     user_message = update.message.text
