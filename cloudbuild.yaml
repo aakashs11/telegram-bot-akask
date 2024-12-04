@@ -14,9 +14,8 @@ steps:
     args: ['build', '-t', 'gcr.io/$PROJECT_ID/telegram-bot', '.']
 
   # Step 3: Push the Docker image to Google Container Registry
- - name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'asia-south1-docker.pkg.dev/$PROJECT_ID/telegram-bot-repo/telegram-bot']
-
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'asia-south1-docker.pkg.dev/$PROJECT_ID/telegram-bot-repo/telegram-bot']
 
   # Step 4: Deploy the Docker image to Cloud Run
   - name: 'gcr.io/cloud-builders/gcloud'
