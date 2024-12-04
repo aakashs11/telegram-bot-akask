@@ -13,7 +13,7 @@ steps:
   #telegram-bot was in u
   #telegram-bot-repo is in southeast1
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/telegram-bot-repo/telegram-bot:latest', '.']
+    args: ['build', '-t', 'asia-south1-docker.pkg.dev/$PROJECT_ID/telegram-bot-repo/telegram-bot:latest', '.']
 
   # Step 3: Push the Docker image to Google Container Registry
   - name: 'gcr.io/cloud-builders/docker'
