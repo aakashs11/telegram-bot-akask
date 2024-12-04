@@ -522,7 +522,6 @@ async def handle_webhook(request: Request):
         logger.exception("Error handling webhook")  # Use exception logging
         return {"status": "error", "message": str(e)}
 
-
 # Run the FastAPI app
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
