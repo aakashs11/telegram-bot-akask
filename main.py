@@ -19,6 +19,13 @@ from telegram import Update
 from telegram.ext import (Application, CallbackContext, CommandHandler,
                           MessageHandler, filters)
 print(os.environ.keys())
+import google.auth
+from google.auth.transport.requests import Request
+
+credentials, project = google.auth.default()
+gc = gspread.authorize(credentials)
+sh = gc.open("Telegram-Bot-Akask-Logs")
+print("Spreadsheet opened successfully.")
 
 # Configure logging
 logging.basicConfig(
@@ -33,7 +40,10 @@ load_dotenv()
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 NGROK_URL = os.getenv("NGROK_URL")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-SERVICE_ACCOUNT_KEY = os.getenv("SERVICE_ACCOUNT_KEY") 
+service_account_key = os.getenv("service-account-key") 
+if not service_account_key:
+    raise ValueError("SERVICE_ACCOUNT_KEY is not set or empty.")
+
 CLOUD_RUN_URL = os.getenv("CLOUD_RUN_URL")
 logger.debug(
     f"Telegram Token: {TOKEN}, NGROK_URL: {NGROK_URL}, OPENAI_API_KEY: {OPENAI_API_KEY}"
@@ -51,10 +61,10 @@ if not TOKEN:
 
 # Attempt to open the spreadsheet
 try:
-    service_account_info = json.loads(SERVICE_ACCOUNT_KEY)
+    service_account_info = json.loads(service_account_key)
+
     credentials = Credentials.from_service_account_info(service_account_info)
-    gc = gspread.authorize(credentials)
-    sh = gc.open("Telegram-Bot-Akask-Logs")
+    
     print("Spreadsheet opened successfully.")
 except gspread.exceptions.SpreadsheetNotFound:
     print("Spreadsheet not found. Please check the name and sharing settings.")
