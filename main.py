@@ -11,7 +11,17 @@ from pathlib import Path
 import logging
 import uvicorn
 import subprocess
+from google.cloud import secretmanager
+import gspread
+client = secretmanager.SecretManagerServiceClient()
+secret_name = "projects/<project-id>/secrets/service-account-key/versions/latest"
+response = client.access_secret_version(name=secret_name)
+service_account_info = json.loads(response.payload.data.decode("UTF-8"))
+from google.oauth2.service_account import Credentials
+SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
 
+credentials = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
+client = gspread.authorize(credentials)
 
 
 # Configure logging
@@ -60,6 +70,23 @@ app = FastAPI(lifespan=lifespan)
 
 # Initialize Telegram bot application
 application = Application.builder().token(TOKEN).build()
+
+##########################LOGGING##############
+
+
+from googleapiclient.discovery import build
+from google.oauth2 import service_account
+# Open the Google Sheet by name
+sheet = client.open('Telegram-Bot-Akask-Logs').sheet1
+def log_to_sheet(user_id, user_message, bot_response):
+    try:
+        row = [user_id, user_message, bot_response]
+        sheet.append_row(row)
+    except Exception as e:
+        logger.error(f"Failed to log to Google Sheets: {e}")
+
+
+
 
 # Conversation history
 conversation_history = []
@@ -334,9 +361,12 @@ Feel free to start the conversation!""")
 
 async def handle_message(update: Update, context: CallbackContext):
     user_message = update.message.text
+    user_id = update.message.from_user.id
     response = classify_intent(user_message)
     response = escape_markdown(response)
     await update.message.reply_text(response, parse_mode="MarkdownV2")
+     # Log the interaction
+    log_to_sheet(user_id, user_message, response)
 
 # Add handlers to application
 application.add_handler(CommandHandler("start", start))
