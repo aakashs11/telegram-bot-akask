@@ -18,6 +18,7 @@ from google.oauth2.service_account import Credentials
 from telegram import Update
 from telegram.ext import (Application, CallbackContext, CommandHandler,
                           MessageHandler, filters)
+print(os.environ.keys())
 
 # Configure logging
 logging.basicConfig(

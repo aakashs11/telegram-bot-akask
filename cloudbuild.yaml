@@ -21,6 +21,7 @@ steps:
       - 'managed'
       - '--allow-unauthenticated'
       - '--service-account=cloud-run-deployer@telegram-bot-akask.iam.gserviceaccount.com'
+      
      
 
 timeout: 1200s
