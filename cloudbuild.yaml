@@ -23,3 +23,7 @@ steps:
       - '--service-account=cloud-run-deployer@telegram-bot-akask.iam.gserviceaccount.com'
       - '--update-secrets'
       - 'OPENAI_API_KEY=projects/telegram-bot-akask/secrets/OPENAI_API_KEY:latest,TELEGRAM_BOT_TOKEN=projects/telegram-bot-akask/secrets/TELEGRAM_BOT_TOKEN:latest'
+
+
+timeout: 1200s
+logsBucket: gs://telegram-bot-akask-bucket
