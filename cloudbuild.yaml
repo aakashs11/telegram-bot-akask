@@ -1,43 +1,36 @@
 steps:
-  # Step 1: Authenticate with Secret Manager to retrieve secrets
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: bash
-    args:
-      - "-c"
-      - |
-        echo "Retrieving secrets..."
-        export OPENAI_API_KEY=$(gcloud secrets versions access latest --secret=OPENAI_API_KEY)
-        export TELEGRAM_BOT_TOKEN=$(gcloud secrets versions access latest --secret=TELEGRAM_BOT_TOKEN)
-
-  # Step 2: Build the Docker image
-  #telegram-bot was in usa
-  #telegram-bot-repo is in southeast1
+  # Step 1: Build the Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 'asia-south1-docker.pkg.dev/$PROJECT_ID/telegram-bot-repo/telegram-bot:latest', '.']
 
-  # Step 3: Push the Docker image to Google Container Registry
+  # Step 2: Push the Docker image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'asia-south1-docker.pkg.dev/$PROJECT_ID/telegram-bot-repo/telegram-bot:latest']
 
-  # Step 4: Deploy the Docker image to Cloud Run
+  # Step 3: Deploy the Docker image to Cloud Run
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - 'run'
       - 'deploy'
       - 'telegram-bot'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/telegram-bot'
+      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/telegram-bot-repo/telegram-bot:latest'
       - '--region'
       - 'asia-south1'
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
-      - '--update-env-vars'
-      - 'OPENAI_API_KEY=$_OPENAI_API_KEY,TELEGRAM_BOT_TOKEN=$_TELEGRAM_BOT_TOKEN'
-
+      - '--update-secrets'
+      - 'OPENAI_API_KEY=projects/$PROJECT_ID/secrets/OPENAI_API_KEY:latest,TELEGRAM_BOT_TOKEN=projects/$PROJECT_ID/secrets/TELEGRAM_BOT_TOKEN:latest'
+# Step 5: Set the Telegram webhook
+  - name: 'curlimages/curl'
+    entrypoint: bash
+    args:
+      - "-c"
+      - |
+        echo "Setting Telegram webhook..."
+        TELEGRAM_BOT_URL=$(gcloud run services describe telegram-bot --region=asia-south1 --format="value(status.url)")
+        curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
+             -d "url=$TELEGRAM_BOT_URL/webhook"
 timeout: 1200s
 logsBucket: gs://telegram-bot-akask-bucket
-
-substitutions:
-  _OPENAI_API_KEY: "your-openai-api-key"
-  _TELEGRAM_BOT_TOKEN: "your-telegram-bot-token"
