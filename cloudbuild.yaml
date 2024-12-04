@@ -1,11 +1,11 @@
 steps:
   # Step 1: Build the Docker image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'asia-south1-docker.pkg.dev/telegram-bot-akask/telegram-bot-repo/telegram-bot:latest', '.']
+    args: ['build', '-t', 'asia-south1-docker.pkg.dev/$PROJECT_ID/telegram-bot-repo/telegram-bot:latest', '.']
 
   # Step 2: Push the Docker image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'asia-south1-docker.pkg.dev/telegram-bot-akask/telegram-bot-repo/telegram-bot:latest']
+    args: ['push', 'asia-south1-docker.pkg.dev/$PROJECT_ID/telegram-bot-repo/telegram-bot:latest']
 
   # Step 3: Deploy the Docker image to Cloud Run
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -14,7 +14,7 @@ steps:
       - 'deploy'
       - 'telegram-bot'
       - '--image'
-      - 'asia-south1-docker.pkg.dev/telegram-bot-akask/telegram-bot-repo/telegram-bot:latest'
+      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/telegram-bot-repo/telegram-bot:latest'
       - '--region'
       - 'asia-south1'
       - '--platform'
@@ -22,8 +22,10 @@ steps:
       - '--allow-unauthenticated'
       - '--service-account=cloud-run-deployer@telegram-bot-akask.iam.gserviceaccount.com'
       - '--update-secrets'
-      - 'OPENAI_API_KEY=projects/telegram-bot-akask/secrets/OPENAI_API_KEY:latest,TELEGRAM_BOT_TOKEN=projects/telegram-bot-akask/secrets/TELEGRAM_BOT_TOKEN:latest'
+      - 'OPENAI_API_KEY=OPENAI_API_KEY:latest,TELEGRAM_BOT_TOKEN=TELEGRAM_BOT_TOKEN:latest'
 
 
 timeout: 1200s
 logsBucket: gs://telegram-bot-akask-bucket
+substitutions:
+  PROJECT_ID: "telegram-bot-akask"
