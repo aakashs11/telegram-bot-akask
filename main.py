@@ -398,20 +398,31 @@ def classify_intent(query):
         "This is an educational query: {query}"
         """
         messages = [{"role": "system", "content": screening_prompt}]
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            response_format={"type": "json_object"},
-            max_tokens=20,
-            messages=messages,
-        )
-        assistant_message = response.choices[0].message.content
         try:
-            assistant_message = json.loads(assistant_message)
-            print(assistant_message)
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                response_format={"type": "json_object"},
+                max_tokens=50,
+                messages=messages,
+            )
+            assistant_message = response.choices[0].message.content
+            parsed_response = json.loads(assistant_message)
+            
+            # Validate keys in the response
+            if "is_valid" in parsed_response and "comments" in parsed_response:
+                return parsed_response
+            else:
+                raise ValueError("Invalid response structure: Missing required keys.")
+        
+        except json.JSONDecodeError as e:
+            print(f"JSONDecodeError: {e} - Response was: {response.choices[0].message.content}")
+            return {"is_valid": "False", "comments": "Could not parse response."}
+    
         except Exception as e:
-            print(e)
+            print(f"Unexpected error in screen_message: {e}")
+            return {"is_valid": "False", "comments": "An error occurred during screening."}
 
-        return assistant_message
+        
 
     message_is_valid = screen_message(query)["is_valid"]
     if message_is_valid in ["True", "true"]:
@@ -452,7 +463,7 @@ def classify_intent(query):
             model="gpt-4o-mini",
             messages=conversation_history,
             tools=tools,
-            max_tokens=30,
+            max_tokens=50,
         )
         assistant_message = response.choices[0].message
 
