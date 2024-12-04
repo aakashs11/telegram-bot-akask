@@ -407,6 +407,7 @@ def classify_intent(query):
         assistant_message = response.choices[0].message.content
         try:
             assistant_message = json.loads(assistant_message)
+            print(assistant_message)
         except Exception as e:
             print(e)
 
