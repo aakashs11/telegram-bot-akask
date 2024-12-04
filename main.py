@@ -33,6 +33,7 @@ load_dotenv()
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 NGROK_URL = os.getenv("NGROK_URL")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+SERVICE_ACCOUNT_KEY = os.getenv("SERVICE_ACCOUNT_KEY") 
 CLOUD_RUN_URL = os.getenv("CLOUD_RUN_URL")
 logger.debug(
     f"Telegram Token: {TOKEN}, NGROK_URL: {NGROK_URL}, OPENAI_API_KEY: {OPENAI_API_KEY}"
@@ -50,7 +51,7 @@ if not TOKEN:
 
 # Attempt to open the spreadsheet
 try:
-    service_account_info = json.loads(os.environ['service-account-key'])
+    service_account_info = json.loads(SERVICE_ACCOUNT_KEY)
     credentials = Credentials.from_service_account_info(service_account_info)
     gc = gspread.authorize(credentials)
     sh = gc.open("Telegram-Bot-Akask-Logs")
