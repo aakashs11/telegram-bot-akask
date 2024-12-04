@@ -21,6 +21,9 @@ steps:
       - 'managed'
       - '--allow-unauthenticated'
       - '--service-account=cloud-run-deployer@telegram-bot-akask.iam.gserviceaccount.com'
+      - '--set-env-vars=TELEGRAM_BOT_TOKEN=${_TELEGRAM_BOT_TOKEN}'
+      - '--set-env-vars=NGROK_URL=${_NGROK_URL}'
+      - '--set-env-vars=OPENAI_API_KEY=${_OPENAI_API_KEY}'
       
      
 
