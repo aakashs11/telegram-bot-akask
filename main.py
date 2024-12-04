@@ -23,8 +23,10 @@ import google.auth
 from google.auth.transport.requests import Request
 
 credentials, project = google.auth.default()
+print(f"Service Account Email: {credentials.service_account_email}")
+
 gc = gspread.authorize(credentials)
-sh = gc.open("Telegram-Bot-Akask-Logs")
+sh = gc.open_by_key('1-1Y4O4RAa-XgtAcGB_tEzXE3dta8pYxCgzj5o9FRqM0')
 print("Spreadsheet opened successfully.")
 
 # Configure logging
