@@ -224,7 +224,7 @@ tools = [
                                         },
                                         "value": {
                                             "type": "string",
-                                            "description": "The value of the entity, such as 'AI', 'Class 10', etc."
+                                            "description": "The value of the entity, such as 'AI', 'Class 10', etc. "
                                         }
                                     },
                                     "required": ["type", "value"],
@@ -292,7 +292,7 @@ def classify_intent(query):
         STRICTLY Use the get_notes tool if the intent is get_notes.
         """
         system_prompt= """
-            You are a ASK.ai a helpful assistant that provides notes and other asssistance based on user queries. 
+            You are ASK.ai a helpful assistant that provides notes and other asssistance based on user queries. 
             Greet the user with a message.
             Always ask for missing details if required.
             STRICTLY Use the get_notes tool if the intent is get_notes.
@@ -361,6 +361,7 @@ Feel free to start the conversation!""")
 
 async def handle_message(update: Update, context: CallbackContext):
     user_message = update.message.text
+    
     user_id = update.message.from_user.id
     response = classify_intent(user_message)
     response = escape_markdown(response)
