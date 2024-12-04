@@ -38,7 +38,6 @@ logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
-
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 NGROK_URL = os.getenv("NGROK_URL")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -418,7 +417,7 @@ def classify_intent(query):
             print(f"JSONDecodeError: {e} - Response was: {response.choices[0].message.content}")
             return {"is_valid": "False", "comments": "Could not parse response."}
     
-    
+
         except Exception as e:
             print(f"Unexpected error in screen_message: {e}")
             return {"is_valid": "False", "comments": "An error occurred during screening."}
