@@ -20,7 +20,7 @@ from telegram.ext import (Application, CallbackContext, CommandHandler,
                           MessageHandler, filters)
 print(os.environ.keys())
 import google.auth
-from google.auth.transport.requests import Request
+
 
 credentials, project = google.auth.default()
 print(f"Service Account Email: {credentials.service_account_email}")
