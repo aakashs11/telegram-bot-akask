@@ -49,7 +49,7 @@ if not TOKEN:
 
 # Attempt to open the spreadsheet
 try:
-    service_account_info = json.loads(os.environ['SERVICE_ACCOUNT_KEY'])
+    service_account_info = json.loads(os.environ['service-account-key'])
     credentials = Credentials.from_service_account_info(service_account_info)
     gc = gspread.authorize(credentials)
     sh = gc.open("Telegram-Bot-Akask-Logs")
