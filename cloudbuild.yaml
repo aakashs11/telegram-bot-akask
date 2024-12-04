@@ -1,11 +1,11 @@
 steps:
   # Step 1: Build the Docker image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'asia-south1-docker.pkg.dev/$PROJECT_ID/telegram-bot-repo/telegram-bot:latest', '.']
+    args: ['build', '-t', 'asia-south1-docker.pkg.dev/$_PROJECT_ID/telegram-bot-repo/telegram-bot:latest', '.']
 
   # Step 2: Push the Docker image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'asia-south1-docker.pkg.dev/$PROJECT_ID/telegram-bot-repo/telegram-bot:latest']
+    args: ['push', 'asia-south1-docker.pkg.dev/$_PROJECT_ID/telegram-bot-repo/telegram-bot:latest']
 
   # Step 3: Deploy the Docker image to Cloud Run
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -14,7 +14,7 @@ steps:
       - 'deploy'
       - 'telegram-bot'
       - '--image'
-      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/telegram-bot-repo/telegram-bot:latest'
+      - 'asia-south1-docker.pkg.dev/$_PROJECT_ID/telegram-bot-repo/telegram-bot:latest'
       - '--region'
       - 'asia-south1'
       - '--platform'
@@ -28,4 +28,4 @@ steps:
 timeout: 1200s
 logsBucket: gs://telegram-bot-akask-bucket
 substitutions:
-  PROJECT_ID: "telegram-bot-akask"
+  _PROJECT_ID: "telegram-bot-akask"
