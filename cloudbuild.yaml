@@ -23,18 +23,13 @@ steps:
       - '--update-secrets'
       - 'OPENAI_API_KEY=projects/$PROJECT_ID/secrets/OPENAI_API_KEY:latest,TELEGRAM_BOT_TOKEN=projects/$PROJECT_ID/secrets/TELEGRAM_BOT_TOKEN:latest'
 # Step 4: Set the Telegram webhook
-   - name: 'curlimages/curl'
+  - name: 'curlimages/curl'
     entrypoint: bash
     args:
       - "-c"
       - |
-        set -e
         echo "Retrieving Cloud Run URL..."
         TELEGRAM_BOT_URL=$(gcloud run services describe telegram-bot --region=asia-south1 --format="value(status.url)")
-        if [[ -z "$TELEGRAM_BOT_URL" ]]; then
-          echo "Failed to retrieve Cloud Run URL."
-          exit 1
-        fi
         echo "Setting Telegram webhook to $TELEGRAM_BOT_URL/webhook..."
         curl -X POST "https://api.telegram.org/bot$(gcloud secrets versions access latest --secret=TELEGRAM_BOT_TOKEN)/setWebhook" \
              -d "url=$TELEGRAM_BOT_URL/webhook"
