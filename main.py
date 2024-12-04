@@ -1,21 +1,71 @@
-from flask import Flask, request
+from fastapi import FastAPI, Request
 import json
-from telegram import Bot, Update  # Import Bot here
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 import asyncio
+from telegram import Update
+from contextlib import asynccontextmanager
+import os
 import requests
-from openai import OpenAI
-from telegram.helpers import escape_markdown
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
+from dotenv import load_dotenv
+from pathlib import Path
+import logging
+import uvicorn
+import subprocess
+
+
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG,  # Set the desired logging level
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# Load environment variables
+load_dotenv()
+
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+NGROK_URL = os.getenv("NGROK_URL")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+CLOUD_RUN_URL = os.getenv("CLOUD_RUN_URL")
+logger.debug(f"Telegram Token: {TOKEN}, NGROK_URL: {NGROK_URL}, OPENAI_API_KEY: {OPENAI_API_KEY}")
 
 # Initialize OpenAI client
+from openai import OpenAI
 client = OpenAI()
-# Initialize Flask app
-app = Flask(__name__)
+
+if not TOKEN:
+    raise ValueError("TELEGRAM_BOT_TOKEN is not set in the environment variables.")
+
+# Initialize FastAPI app
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if CLOUD_RUN_URL:
+        webhook_url = f"{CLOUD_RUN_URL}/webhook"
+        response = requests.get(
+            f"https://api.telegram.org/bot{TOKEN}/setWebhook",
+            params={"url": webhook_url}
+        )
+        if response.status_code == 200:
+            logger.info(f"Webhook set successfully: {webhook_url}")
+        else:
+            logger.error(f"Failed to set webhook: {response.text}")
+    else:
+        logger.warning("CLOUD_RUN_URL is not set. The webhook will need to be configured manually after deployment.")
+    yield
+
+# After deployment, set the webhook using:
+# curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" \
+#      -H "Content-Type: application/json" \
+#      -d '{"url": "https://<your-cloud-run-url>/webhook"}'
+app = FastAPI(lifespan=lifespan)
+
+# Initialize Telegram bot application
+application = Application.builder().token(TOKEN).build()
 
 # Conversation history
 conversation_history = []
 
 import re
+
 def escape_markdown(text: str, version: str = "MarkdownV2") -> str:
     """
     Escapes special characters for Markdown formatting but preserves hyperlink formatting.
@@ -44,7 +94,9 @@ def escape_markdown(text: str, version: str = "MarkdownV2") -> str:
     
     return "".join(escaped_parts)
 
-
+@app.get("/")
+async def read_root():
+    return {"message": "Welcome to the FastAPI application!"}
 
 # Append to conversation history
 def append_to_history(role, content):
@@ -79,10 +131,9 @@ def get_notes(query):
         if isinstance(query, str):
             query = json.loads(query)
 
-        with open(".\config\index.json") as f:
+        with open("/app/config/index.json") as f:
             index = json.load(f)
-            # print(index)
-
+            print(index)
         # Extract required information
         _class = None
         _subject = None
@@ -132,7 +183,7 @@ tools = [
                         "properties": {
                             "intent": {
                                 "type": "string",
-                                "description": "The user's intent, such as 'get_notes', 'get_syllabus','unknown_intent"
+                                "description": "The user's intent, such as 'get_notes', 'get_syllabus', etc."
                             },
                             "entities": {
                                 "type": "array",
@@ -146,7 +197,7 @@ tools = [
                                         },
                                         "value": {
                                             "type": "string",
-                                            "description": "The value of the entity, such as 'AI', 'Class 10', etc. Valid values are ['AI','IT','IP','CS','CA'] and ['Class 10', 'Class 11'], 'Class 12'"
+                                            "description": "The value of the entity, such as 'AI', 'Class 10', etc."
                                         }
                                     },
                                     "required": ["type", "value"],
@@ -166,8 +217,39 @@ tools = [
 ]
 # Classify intent function
 def classify_intent(query):
-    append_to_history("user", query)
+    
+    def screen_message(query):
+        screening_prompt = f"""
+        Analyze the given message and determine if it is appropriate for students.
+        The message should not contain adult, pornographic, or extreme language. or profanities in english and hindi.
+        Keep output in under 15 words.
+        Messages containing scientific or educational terms are always valid. 
+        Respond in the following JSON format:
+        {{
+        "is_valid": "True/False",
+        "comments": "Provide a brief explanation of why the message is valid or invalid."
+        }}
+        "This is an educational query: {query}"
+        """
+        messages =[ {"role": "system", "content": screening_prompt}]
+        response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        response_format={ "type": "json_object" },
+        max_tokens=30,
+        messages=messages
+        
+    )
+        assistant_message = response.choices[0].message.content
+        try:
+            assistant_message = json.loads(assistant_message)
+        except Exception as e:
+            print(e)
+        
+        return assistant_message
 
+    message_is_valid = screen_message(query)['is_valid']
+    if message_is_valid in ['True', 'true']:
+        append_to_history("user", query)
     
     prompt_classify_intent = """
     Given a user's query, identify the user's intent (e.g., get_notes, get_syllabus, unknown_intent), and extract entities such as subject (AI, IT, IP, CS) and class (Class 10, Class 11, Class 12). Normalize entities to standard values. If information is missing, dynamically ask for the missing details in a user-friendly way. Format the output in the following JSON:
@@ -182,9 +264,24 @@ def classify_intent(query):
     }
     STRICTLY Use the get_notes tool if the intent is get_notes.
     """
-    if len(conversation_history) == 0:
-        append_to_history("system", f" Given a user's query, identify the user's intent (e.g., get_notes, get_syllabus, unknown_intent), and extract entities such as subject (AI, IT, IP, CS) and class (Class 10, Class 11, Class 12). Normalize entities to standard values. If information is missing, dynamically ask for the missing details in a user-friendly way. Handle out of context queries gracefully. Give a warning if the user asks for anything other than educational context.")
+    system_prompt= """
+        You are a ASK.ai a helpful assistant that provides notes and other asssistance based on user queries. 
+        Greet the user with a message.
+        Always ask for missing details if required.
+        STRICTLY Use the get_notes tool if the intent is get_notes.
+        STRICTLY FOLLOW THESE RULES:
+        Age-Appropriate Language: Use clear, concise language suitable for teenagers. Explain complex terms when necessary.
+        Empathy: Recognize signs of confusion or frustration. Respond with patience and offer additional explanations or resources.
+        Refer to Human Assistance: For complex or sensitive issues, recommend seeking help from teachers or parents.
+        Transparency: Inform users they are interacting with an AI and clarify its capabilities and limitations.
+        STRICTLY Keep responses under 30 words.
 
+        """
+    # Add initial system message for context
+    if len(conversation_history) == 0:
+        append_to_history("system", system_prompt)
+
+    # Get response from the model
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=conversation_history,
@@ -216,52 +313,36 @@ def classify_intent(query):
     append_to_history("assistant", assistant_message.content)
     return escape_markdown(assistant_message.content
 )
-# Telegram bot token
-TOKEN = '7559131288:AAFoveLB2DajT9KXXhrBcznEe9xLKhwqkh4'
-# Initialize the Application
-application = Application.builder().token(TOKEN).build()
-#  Handlers
-async def start(update: Update, context):
+# Handlers for Telegram
+async def start(update: Update, context: CallbackContext):
     user = update.effective_user
     await update.message.reply_text(f"Hi {user.first_name}! I'm a bot powered by OpenAI. Ask me anything!")
 
-async def handle_message(update: Update, context):
+async def handle_message(update: Update, context: CallbackContext):
     user_message = update.message.text
-    # Implement your classify_intent function here
     response = classify_intent(user_message)
-    escaped_response = escape_markdown(response, version=2)
+    response = escape_markdown(response)
     await update.message.reply_text(response, parse_mode="MarkdownV2")
 
 # Add handlers to application
 application.add_handler(CommandHandler("start", start))
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-@app.route('/webhook', methods=['POST'])
-def webhook():
+# Webhook endpoint
+@app.post("/webhook")
+async def handle_webhook(request: Request):
     try:
-        update = Update.de_json(request.get_json(force=True), application.bot)
-
-        async def process_update():
-            await application.initialize()  # Ensure the Application is initialized
-            await application.process_update(update)  # Process the incoming update
-            await application.shutdown()  # Graceful shutdown of the Application
-
-        asyncio.run(process_update())  # Run the async function
-
-        return 'OK', 200  # Respond with 200 OK to Telegram
+        # Ensure the application is initialized before processing updates
+        await application.initialize()
+        
+        # Process the incoming webhook update
+        update = Update.de_json(await request.json(), application.bot)
+        await application.process_update(update)
+        return {"status": "ok"}
     except Exception as e:
-        print(f"Error processing webhook: {e}")
-        return 'Internal Server Error', 500
+        logger.exception("Error handling webhook")  # Use exception logging
+        return {"status": "error", "message": str(e)}
 
-
-NGROK_URL = 'https://486f-49-207-216-250.ngrok-free.app/'
-def set_webhook():
-    webhook_url = f'{NGROK_URL}/webhook'
-    response = requests.get(f'https://api.telegram.org/bot{TOKEN}/setWebhook?url={webhook_url}')
-    if response.status_code == 200:
-        print("Webhook set successfully.")
-    else:
-        print(f"Failed to set webhook: {response.text}")
-
+# Run the FastAPI app
 if __name__ == "__main__":
-    set_webhook()
-    app.run(host="0.0.0.0", port=5000)
+    port = int(os.getenv("PORT", 8080))
+    uvicorn.run(app, host="0.0.0.0", port=port)
