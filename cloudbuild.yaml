@@ -10,7 +10,7 @@ steps:
         export TELEGRAM_BOT_TOKEN=$(gcloud secrets versions access latest --secret=TELEGRAM_BOT_TOKEN)
 
   # Step 2: Build the Docker image
-  #telegram-bot was in us
+  #telegram-bot was in usa
   #telegram-bot-repo is in southeast1
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 'asia-south1-docker.pkg.dev/$PROJECT_ID/telegram-bot-repo/telegram-bot:latest', '.']
