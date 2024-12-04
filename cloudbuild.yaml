@@ -31,7 +31,11 @@ steps:
       - 'managed'
       - '--allow-unauthenticated'
       - '--update-env-vars'
-      - 'OPENAI_API_KEY=$OPENAI_API_KEY,TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN'
+      - 'OPENAI_API_KEY=$_OPENAI_API_KEY,TELEGRAM_BOT_TOKEN=$_TELEGRAM_BOT_TOKEN'
 
 timeout: 1200s
 logsBucket: gs://telegram-bot-akask-bucket
+
+substitutions:
+  _OPENAI_API_KEY: "your-openai-api-key"
+  _TELEGRAM_BOT_TOKEN: "your-telegram-bot-token"
