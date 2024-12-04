@@ -21,9 +21,7 @@ steps:
       - 'managed'
       - '--allow-unauthenticated'
       - '--service-account=cloud-run-deployer@telegram-bot-akask.iam.gserviceaccount.com'
-      - '--update-secrets'
-      - 'OPENAI_API_KEY=OPENAI_API_KEY:latest,TELEGRAM_BOT_TOKEN=TELEGRAM_BOT_TOKEN:latest'
-
+     
 
 timeout: 1200s
 logsBucket: gs://telegram-bot-akask-bucket
