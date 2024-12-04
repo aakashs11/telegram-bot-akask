@@ -251,68 +251,70 @@ def classify_intent(query):
     if message_is_valid in ['True', 'true']:
         append_to_history("user", query)
     
-    prompt_classify_intent = """
-    Given a user's query, identify the user's intent (e.g., get_notes, get_syllabus, unknown_intent), and extract entities such as subject (AI, IT, IP, CS) and class (Class 10, Class 11, Class 12). Normalize entities to standard values. If information is missing, dynamically ask for the missing details in a user-friendly way. Format the output in the following JSON:
-    {
-      "intent": "<intent>",
-      "entities": [
+        prompt_classify_intent = """
+        Given a user's query, identify the user's intent (e.g., get_notes, get_syllabus, unknown_intent), and extract entities such as subject (AI, IT, IP, CS) and class (Class 10, Class 11, Class 12). Normalize entities to standard values. If information is missing, dynamically ask for the missing details in a user-friendly way. Format the output in the following JSON:
         {
-          "type": "<entity_type>",
-          "value": "<entity_value>"
+        "intent": "<intent>",
+        "entities": [
+            {
+            "type": "<entity_type>",
+            "value": "<entity_value>"
+            }
+        ]
         }
-      ]
-    }
-    STRICTLY Use the get_notes tool if the intent is get_notes.
-    """
-    system_prompt= """
-        You are a ASK.ai a helpful assistant that provides notes and other asssistance based on user queries. 
-        Greet the user with a message.
-        Always ask for missing details if required.
         STRICTLY Use the get_notes tool if the intent is get_notes.
-        STRICTLY FOLLOW THESE RULES:
-        Age-Appropriate Language: Use clear, concise language suitable for teenagers. Explain complex terms when necessary.
-        Empathy: Recognize signs of confusion or frustration. Respond with patience and offer additional explanations or resources.
-        Refer to Human Assistance: For complex or sensitive issues, recommend seeking help from teachers or parents.
-        Transparency: Inform users they are interacting with an AI and clarify its capabilities and limitations.
-        STRICTLY Keep responses under 30 words.
-
         """
-    # Add initial system message for context
-    if len(conversation_history) == 0:
-        append_to_history("system", system_prompt)
+        system_prompt= """
+            You are a ASK.ai a helpful assistant that provides notes and other asssistance based on user queries. 
+            Greet the user with a message.
+            Always ask for missing details if required.
+            STRICTLY Use the get_notes tool if the intent is get_notes.
+            STRICTLY FOLLOW THESE RULES:
+            Age-Appropriate Language: Use clear, concise language suitable for teenagers. Explain complex terms when necessary.
+            Empathy: Recognize signs of confusion or frustration. Respond with patience and offer additional explanations or resources.
+            Refer to Human Assistance: For complex or sensitive issues, recommend seeking help from teachers or parents.
+            Transparency: Inform users they are interacting with an AI and clarify its capabilities and limitations.
+            STRICTLY Keep responses under 30 words.
 
-    # Get response from the model
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=conversation_history,
-        tools=tools,
-        max_tokens=50
+            """
+        # Add initial system message for context
+        if len(conversation_history) == 0:
+            append_to_history("system", system_prompt)
+
+        # Get response from the model
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=conversation_history,
+            tools=tools,
+            max_tokens=50
+        )
+
+        assistant_message = response.choices[0].message
+
+        if assistant_message.tool_calls:
+            tool_call = assistant_message.tool_calls[0]
+            if tool_call.function.name == "get_notes":
+                arguments = json.loads(tool_call.function.arguments)
+                if "query" in arguments and arguments["query"].get("entities"):
+                    result = get_notes(arguments["query"])
+                    append_to_history("assistant", result)
+                    return result
+                else:
+                    # Dynamically ask for missing information
+                    missing_info = []
+                    for required in ["class", "subject"]:
+                        if not any(entity["type"] == required for entity in arguments["query"].get("entities", [])):
+                            missing_info.append(required)
+                    missing_prompt = f"Could you please specify: {', '.join(missing_info)}?"
+                    append_to_history("assistant", missing_prompt)
+                    return missing_prompt
+
+        # Handle responses without tool calls
+        append_to_history("assistant", assistant_message.content)
+        return escape_markdown(assistant_message.content
     )
-
-    assistant_message = response.choices[0].message
-
-    if assistant_message.tool_calls:
-        tool_call = assistant_message.tool_calls[0]
-        if tool_call.function.name == "get_notes":
-            arguments = json.loads(tool_call.function.arguments)
-            if "query" in arguments and arguments["query"].get("entities"):
-                result = get_notes(arguments["query"])
-                append_to_history("assistant", result)
-                return result
-            else:
-                # Dynamically ask for missing information
-                missing_info = []
-                for required in ["class", "subject"]:
-                    if not any(entity["type"] == required for entity in arguments["query"].get("entities", [])):
-                        missing_info.append(required)
-                missing_prompt = f"Could you please specify: {', '.join(missing_info)}?"
-                append_to_history("assistant", missing_prompt)
-                return missing_prompt
-
-    # Handle responses without tool calls
-    append_to_history("assistant", assistant_message.content)
-    return escape_markdown(assistant_message.content
-)
+    else:
+        return "Please ensure your language is ethical and suitable for students."
 # Handlers for Telegram
 async def start(update: Update, context: CallbackContext):
     user = update.effective_user
