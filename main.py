@@ -64,7 +64,7 @@ if not TOKEN:
 try:
     service_account_info = json.loads(service_account_key)
 
-    credentials = Credentials.from_service_account_info(service_account_info)
+    # credentials = Credentials.from_service_account_info(service_account_info)
     
     print("Spreadsheet opened successfully.")
 except gspread.exceptions.SpreadsheetNotFound:
