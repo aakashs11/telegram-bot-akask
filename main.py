@@ -369,6 +369,7 @@ ENTITY_MAPPING = {
     "11": "Class 11",
     "12": "Class 12",
     "10": "Class 10",
+   
 }
 
 
@@ -474,6 +475,8 @@ def classify_intent(query):
             Greet the user with a message.
             Always ask for missing details if required.
             STRICTLY Use the get_notes tool if the intent is get_notes.
+            Valid subjects are: (AI, IT, IP, CS)
+            Valid classes are: (Class 10, Class 11, Class 12)
             STRICTLY FOLLOW THESE RULES:
             Age-Appropriate Language: Use clear, concise language suitable for teenagers. Explain complex terms when necessary.
             Empathy: Recognize signs of confusion or frustration. Respond with patience and offer additional explanations or resources.
@@ -505,8 +508,9 @@ def classify_intent(query):
                     )
 
                     result = get_notes(arguments["query"])
+                    output['final_output'] = result
                     append_to_history("assistant", result)
-                    return result
+                    return output
                 else:
                     # Dynamically ask for missing information
                     missing_info = []
@@ -520,7 +524,8 @@ def classify_intent(query):
                         f"Could you please specify: {', '.join(missing_info)}?"
                     )
                     append_to_history("assistant", missing_prompt)
-                    return missing_prompt
+                    output['final_output'] = missing_prompt
+                    return output
 
         # Handle responses without tool calls
         append_to_history("assistant", assistant_message.content)
