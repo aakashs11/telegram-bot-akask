@@ -237,9 +237,9 @@ def get_notes(query):
 
         # Check if required data is present
         if not _class:
-            return "Could you please specify the class?"
+            return "Could you please specify the class? Syllabus/PYQs/Sample Papers are not available yet"
         if not _subject:
-            return "Could you please specify the subject?"
+            return "Could you please specify the subject? Syllabus/PYQs/Sample Papers are not available yet"
 
         # Retrieve notes
         data = index.get(_class, {}).get(_subject, {}).get("Notes", {})
@@ -533,7 +533,7 @@ def classify_intent(query,user_id):
                         ):
                             missing_info.append(required)
                     missing_prompt = (
-                        f"Could you please specify: {', '.join(missing_info)}?"
+                        f"Could you please specify: {', '.join(missing_info)}? Syllabus/PYQs/Sample Papers are not available yet"
                     )
                     append_to_history(user_id,"assistant", missing_prompt)
                     output['final_output'] = missing_prompt
