@@ -261,7 +261,7 @@ def get_notes(query):
             """
             messages = [{"role": "system", "content": prompt}]
             response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o-mini",
                 messages=messages,
                 max_tokens=10,
                 temperature=0.0,
@@ -432,7 +432,7 @@ def classify_intent(query,user_id):
         messages = [{"role": "system", "content": screening_prompt}]
         try:
             response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o-mini",
                 response_format={"type": "json_object"},
                 max_tokens=50,
                 messages=messages,
