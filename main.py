@@ -128,6 +128,9 @@ application = Application.builder().token(TOKEN).build()
 
 # Conversation history
 conversation_history = []
+# Dictionary to store conversation history for each user
+user_conversations = {}
+
 
 import re
 
@@ -167,14 +170,18 @@ def escape_markdown(text: str, version: str = "MarkdownV2") -> str:
 async def read_root():
     return {"message": "Welcome to the FastAPI application!"}
 
+def append_to_history(user_id, role, content):
+    # Initialize history for the user if not already present
+    if user_id not in user_conversations:
+        user_conversations[user_id] = []
 
-def append_to_history(role, content):
-    # Append to conversation history
-    MAX_HISTORY_SIZE = 3
-    conversation_history.append({"role": role, "content": content})
+    # Append the new message to the user's history
+    user_conversations[user_id].append({"role": role, "content": content})
+
     # Trim the history if it exceeds the maximum size
-    if len(conversation_history) > MAX_HISTORY_SIZE:
-        conversation_history.pop(0)
+    MAX_HISTORY_SIZE = 3  # Adjust as needed
+    if len(user_conversations[user_id]) > MAX_HISTORY_SIZE:
+        user_conversations[user_id]=[]
 
 
 def format_notes(data):
@@ -401,7 +408,7 @@ def normalize_entities(entities):
 
 
 # Classify intent function
-def classify_intent(query):
+def classify_intent(query,user_id):
     output = {
         "output_screener": "",
         "output_intent": "",
@@ -451,11 +458,14 @@ def classify_intent(query):
                 "is_valid": "False",
                 "comments": "An error occurred during screening.",
             }
+    if user_id not in user_conversations:
+        user_conversations[user_id] = []
+    user_history = user_conversations[user_id]
 
     message_is_valid = screen_message(query)["is_valid"]
     output["output_screener"] = message_is_valid
     if message_is_valid in ["True", "true"]:
-        append_to_history("user", query)
+        append_to_history(user_id, "user", query)
 
         prompt_classify_intent = """
         Given a user's query, identify the user's intent (e.g., get_notes, get_syllabus, unknown_intent), and extract entities such as subject (AI, IT, IP, CS) and class (Class 10, Class 11, Class 12). Normalize entities to standard values. If information is missing, dynamically ask for the missing details in a user-friendly way. Format the output in the following JSON:
@@ -486,13 +496,14 @@ def classify_intent(query):
 
             """
         # Add initial system message for context
-        if len(conversation_history) == 0:
-            append_to_history("system", system_prompt)
+        if len(user_history) == 0:
+            append_to_history(user_id, "system", system_prompt)
+            
 
         # Get response from the model
         response = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=conversation_history,
+            messages=user_history,
             tools=tools,
             max_tokens=50,
         )
@@ -509,7 +520,8 @@ def classify_intent(query):
 
                     result = get_notes(arguments["query"])
                     output['final_output'] = result
-                    append_to_history("assistant", result)
+                    
+                    append_to_history(user_id,"assistant", result)
                     return output
                 else:
                     # Dynamically ask for missing information
@@ -523,12 +535,12 @@ def classify_intent(query):
                     missing_prompt = (
                         f"Could you please specify: {', '.join(missing_info)}?"
                     )
-                    append_to_history("assistant", missing_prompt)
+                    append_to_history(user_id,"assistant", missing_prompt)
                     output['final_output'] = missing_prompt
                     return output
 
         # Handle responses without tool calls
-        append_to_history("assistant", assistant_message.content)
+        append_to_history(user_id,"assistant", assistant_message.content)
         output["final_output"] = assistant_message.content
         return output
     else:
@@ -563,7 +575,7 @@ async def handle_message(update: Update, context: CallbackContext):
     user_id = update.message.from_user.id
     first_name = update.message.from_user.first_name
     username = update.message.from_user.username
-    output = await asyncio.to_thread(classify_intent, user_message)
+    output = await asyncio.to_thread(classify_intent, user_message, user_id)
     response = output["final_output"]
     response = escape_markdown(response)
     await update.message.reply_text(response, parse_mode="MarkdownV2")
