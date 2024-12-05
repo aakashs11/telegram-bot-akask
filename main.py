@@ -4,8 +4,8 @@ import logging
 import os
 import subprocess
 from contextlib import asynccontextmanager
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 import gspread
 import openai
@@ -18,15 +18,15 @@ from google.oauth2.service_account import Credentials
 from telegram import Update
 from telegram.ext import (Application, CallbackContext, CommandHandler,
                           MessageHandler, filters)
+
 print(os.environ.keys())
 import google.auth
-
 
 credentials, project = google.auth.default()
 print(f"Service Account Email: {credentials.service_account_email}")
 
 gc = gspread.authorize(credentials)
-sh = gc.open_by_key('1-1Y4O4RAa-XgtAcGB_tEzXE3dta8pYxCgzj5o9FRqM0')
+sh = gc.open_by_key("1-1Y4O4RAa-XgtAcGB_tEzXE3dta8pYxCgzj5o9FRqM0")
 print("Spreadsheet opened successfully.")
 
 # Configure logging
@@ -41,7 +41,7 @@ load_dotenv()
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 NGROK_URL = os.getenv("NGROK_URL")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-# service_account_key = os.getenv("service-account-key") 
+# service_account_key = os.getenv("service-account-key")
 # if not service_account_key:
 #     raise ValueError("SERVICE_ACCOUNT_KEY is not set or empty.")
 
@@ -59,28 +59,42 @@ if not TOKEN:
     raise ValueError("TELEGRAM_BOT_TOKEN is not set in the environment variables.")
 
 
-
 # Attempt to open the spreadsheet
 # try:
 #     service_account_info = json.loads(service_account_key)
 
 #     # credentials = Credentials.from_service_account_info(service_account_info)
-    
+
 #     print("Spreadsheet opened successfully.")
 # except gspread.exceptions.SpreadsheetNotFound:
 #     print("Spreadsheet not found. Please check the name and sharing settings.")
 
 
-def log_to_sheet(user_id, first_name, username, user_message, response):
+def log_to_sheet(
+    user_id, username, input_message, screen_output, intent, entities, final_output
+):
     try:
         # Get current date and time in IST
         ist = pytz.timezone("Asia/Kolkata")
         current_time = datetime.now(ist).strftime("%Y-%m-%d %H:%M:%S")
-        row = [current_time, user_id, first_name, username, user_message, response]
-        worksheet = sh.sheet1
+
+        # Prepare the row for logging
+        row = [
+            current_time,  # Timestamp
+            user_id,  # User ID
+            username,  # Username
+            input_message,  # User's input
+            screen_output,  # Screening comments
+            intent,  # Detected intent
+            entities,  # Extracted entities as JSON string
+            final_output,  # Final response sent
+        ]
+
+        # Append the row to the Google Sheet
+        worksheet = sh.sheet1  # Assuming the first sheet is used
         worksheet.append_row(row)
     except Exception as e:
-        logger.error(f"Failed to log to Google Sheets: {e}")
+        logger.error(f"Failed to log query details to Google Sheets: {e}")
 
 
 # Initialize FastAPI app
@@ -154,9 +168,13 @@ async def read_root():
     return {"message": "Welcome to the FastAPI application!"}
 
 
-# Append to conversation history
 def append_to_history(role, content):
+    # Append to conversation history
+    MAX_HISTORY_SIZE = 3
     conversation_history.append({"role": role, "content": content})
+    # Trim the history if it exceeds the maximum size
+    if len(conversation_history) > MAX_HISTORY_SIZE:
+        conversation_history.pop(0)
 
 
 def format_notes(data):
@@ -383,6 +401,13 @@ def normalize_entities(entities):
 
 # Classify intent function
 def classify_intent(query):
+    output = {
+        "output_screener": "",
+        "output_intent": "",
+        "output_entitites": "",
+        "final_output": "",
+    }
+
     def screen_message(query):
         screening_prompt = f"""
         Analyze the given message and determine if it is appropriate for students.
@@ -406,25 +431,28 @@ def classify_intent(query):
             )
             assistant_message = response.choices[0].message.content
             parsed_response = json.loads(assistant_message)
-            
+
             # Validate keys in the response
             if "is_valid" in parsed_response and "comments" in parsed_response:
                 return parsed_response
             else:
                 raise ValueError("Invalid response structure: Missing required keys.")
-        
+
         except json.JSONDecodeError as e:
-            print(f"JSONDecodeError: {e} - Response was: {response.choices[0].message.content}")
+            print(
+                f"JSONDecodeError: {e} - Response was: {response.choices[0].message.content}"
+            )
             return {"is_valid": "False", "comments": "Could not parse response."}
-    
 
         except Exception as e:
             print(f"Unexpected error in screen_message: {e}")
-            return {"is_valid": "False", "comments": "An error occurred during screening."}
-
-        
+            return {
+                "is_valid": "False",
+                "comments": "An error occurred during screening.",
+            }
 
     message_is_valid = screen_message(query)["is_valid"]
+    output["output_screener"] = message_is_valid
     if message_is_valid in ["True", "true"]:
         append_to_history("user", query)
 
@@ -496,9 +524,13 @@ def classify_intent(query):
 
         # Handle responses without tool calls
         append_to_history("assistant", assistant_message.content)
-        return assistant_message.content
+        output["final_output"] = assistant_message.content
+        return output
     else:
-        return "Please ensure your language is ethical and suitable for students."
+        output[
+            "final_output"
+        ] = "Please ensure your language is ethical and suitable for students."
+        return output
 
 
 # Handlers for Telegram
@@ -523,9 +555,23 @@ Feel free to start the conversation!"""
 
 async def handle_message(update: Update, context: CallbackContext):
     user_message = update.message.text
-    response = classify_intent(user_message)
+    user_id = update.message.from_user.id
+    first_name = update.message.from_user.first_name
+    username = update.message.from_user.username
+    output = await asyncio.to_thread(classify_intent, user_message)
+    response = output["final_output"]
     response = escape_markdown(response)
     await update.message.reply_text(response, parse_mode="MarkdownV2")
+
+    log_to_sheet(
+        user_id=user_id,
+        username=username,
+        input_message=user_message,
+        screen_output=output["output_screener"],
+        intent=output["output_intent"],
+        entities=output["output_entitites"],
+        final_output=output["final_output"],
+    )
 
 
 # Add handlers to application
@@ -547,6 +593,7 @@ async def handle_webhook(request: Request):
     except Exception as e:
         logger.exception("Error handling webhook")  # Use exception logging
         return {"status": "error", "message": str(e)}
+
 
 # Run the FastAPI app
 if __name__ == "__main__":
