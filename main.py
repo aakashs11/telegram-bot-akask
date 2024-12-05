@@ -41,9 +41,9 @@ load_dotenv()
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 NGROK_URL = os.getenv("NGROK_URL")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-service_account_key = os.getenv("service-account-key") 
-if not service_account_key:
-    raise ValueError("SERVICE_ACCOUNT_KEY is not set or empty.")
+# service_account_key = os.getenv("service-account-key") 
+# if not service_account_key:
+#     raise ValueError("SERVICE_ACCOUNT_KEY is not set or empty.")
 
 CLOUD_RUN_URL = os.getenv("CLOUD_RUN_URL")
 logger.debug(
@@ -61,14 +61,14 @@ if not TOKEN:
 
 
 # Attempt to open the spreadsheet
-try:
-    service_account_info = json.loads(service_account_key)
+# try:
+#     service_account_info = json.loads(service_account_key)
 
-    # credentials = Credentials.from_service_account_info(service_account_info)
+#     # credentials = Credentials.from_service_account_info(service_account_info)
     
-    print("Spreadsheet opened successfully.")
-except gspread.exceptions.SpreadsheetNotFound:
-    print("Spreadsheet not found. Please check the name and sharing settings.")
+#     print("Spreadsheet opened successfully.")
+# except gspread.exceptions.SpreadsheetNotFound:
+#     print("Spreadsheet not found. Please check the name and sharing settings.")
 
 
 def log_to_sheet(user_id, first_name, username, user_message, response):
