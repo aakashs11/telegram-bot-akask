@@ -503,7 +503,7 @@ def classify_intent(query, user_id):
                     ]
                     print("missing info", missing_info)
                     if missing_info:
-                        prompt = f"Could you please specify the following: {', '.join("search term")}?"
+                        prompt = f"Could you please specify the search term?"
                         append_to_history(user_id, "assistant", prompt)
                         output["final_output"] = prompt
                     else:
