@@ -6,7 +6,8 @@ import subprocess
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
-
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 import gspread
 import openai
 import pytz
@@ -41,6 +42,9 @@ load_dotenv()
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 NGROK_URL = os.getenv("NGROK_URL")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
+YOUTUBE_API_SERVICE_NAME = "youtube"
+YOUTUBE_API_VERSION = "v3"
 # service_account_key = os.getenv("service-account-key")
 # if not service_account_key:
 #     raise ValueError("SERVICE_ACCOUNT_KEY is not set or empty.")
@@ -133,6 +137,35 @@ user_conversations = {}
 
 
 import re
+
+
+def format_videos(video_data):
+    """
+    Formats a list of video dictionaries into a MarkdownV2-compatible string.
+
+    Args:
+        video_data (list): List of dictionaries containing video details.
+
+    Returns:
+        str: Formatted string with video titles as clickable links.
+    """
+    if not isinstance(video_data, list):
+        return "Video data is not in the expected format."
+
+    formatted_videos = []
+    for video in video_data:
+        title = video.get('title', 'No Title')
+        url = video.get('url', '#')
+        # description = video.get('description', 'No Description')
+
+        # Escape Markdown characters
+        escaped_title = escape_markdown(title)
+        # escaped_description = escape_markdown(description)
+
+        # Format as Markdown link
+        formatted_videos.append(f"[{escaped_title}]({url})")
+
+    return "\n\n".join(formatted_videos)
 
 
 def escape_markdown(text: str, version: str = "MarkdownV2") -> str:
@@ -250,6 +283,50 @@ def get_notes(query):
         return format_notes(data)  # Or use format_notes(data) if formatting is needed
 
 
+
+def get_videos(query):
+    
+    print('Entered Get Videos for', query['query'])
+    max_results = 5
+
+    """
+    Search for videos within a specific YouTube channel.
+
+    Parameters:
+        query (str): The search term.
+        max_results (int): Maximum number of search results to return.
+
+    Returns:
+        list: A list of dictionaries containing video details (title, URL, description).
+    """
+    try:
+        youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=YOUTUBE_API_KEY)
+        request = youtube.search().list(
+            q=query,
+            part="snippet",
+            channelId='UCsHJyKNfjVMr4EoXPw-8Jxw',
+            type="video",
+            maxResults=max_results
+        )
+        response = request.execute()
+        print('response is',response)
+        results = []
+        for item in response.get("items", []):
+            video = {
+                "title": item["snippet"]["title"],
+                "url": f"https://www.youtube.com/watch?v={item['id']['videoId']}",
+                # "description": item["snippet"]["description"]
+            }
+            results.append(video)
+
+        return format_videos(results)
+    except HttpError as e:
+        print(f"An HTTP error {e.resp.status} occurred: {e.content}")
+        return []
+
+
+
+
 tools = [
     {
         "type": "function",
@@ -277,7 +354,25 @@ tools = [
                 # "required": ["class", "subject"]
             },
         },
-    }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_videos",
+            "description": "Retrieve the links to required videos.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        # "enum": ["Class 10", "Class 11", "Class 12"],
+                    }
+                    },
+                },
+                "required": ["query"]
+            },
+        }
+    
 ]
 
 
@@ -350,9 +445,11 @@ def classify_intent(query, user_id):
         system_prompt = f"""
             CHECK CONVERSATION HISTORY BEFORE RESPONDING.
             You are ASK.ai a helpful assistant that provides notes and other asssistance based on user queries. 
-            Greet the user with a message saying who you are. Solve doubts or help with notes ann other items. Keep it short and to the point.
+            Greet the user with a message saying who you are. Solve doubts or help with notes adn other items.
             STRICTLY ask for missing details if required. STRICTLY DON'T ASSUME THE CLASS.
             STRICTLY Use get_notes tool if the intent is to get notes.
+            STRICTLY Use get_videos tool if the intent is to get videos. 
+            STRICTLY Use get_playlists tool if the intent is to get a playlist.
             STRICTLY Keep responses under 30 words. Summarize where necessary as long messages will be truncated.
 
             """
@@ -365,7 +462,7 @@ def classify_intent(query, user_id):
             model="gpt-4o-mini",
             messages=user_history,
             tools=tools,
-            max_tokens=100,
+            max_tokens=200,
         )
         assistant_message = response.choices[0].message
 
@@ -395,7 +492,29 @@ def classify_intent(query, user_id):
                     output[
                         "final_output"
                     ] = "Error decoding function arguments. Please try again."
-
+            elif tool_call.function.name == "get_videos":
+                try:
+                    arguments = json.loads(tool_call.function.arguments)
+                    print("Arguments are:", arguments)
+                    # Handle missing information
+                    required_fields = ["query"]
+                    missing_info = [
+                        field for field in required_fields if field not in arguments
+                    ]
+                    print("missing info", missing_info)
+                    if missing_info:
+                        prompt = f"Could you please specify the following: {', '.join("search term")}?"
+                        append_to_history(user_id, "assistant", prompt)
+                        output["final_output"] = prompt
+                    else:
+                        # Call the get_notes function
+                        result = get_notes(arguments)
+                        append_to_history(user_id, "assistant", result)
+                        output["final_output"] = result
+                except json.JSONDecodeError as e:
+                    output[
+                        "final_output"
+                    ] = "Error decoding function arguments. Please try again."
             else:
                 # append_to_history("assistant", "Unsupported function call.")
                 output["final_output"] = "Unsupported function call."
