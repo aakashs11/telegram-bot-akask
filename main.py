@@ -286,7 +286,7 @@ def get_notes(query):
 
 
 async def get_videos(query):
-    print("Entered Get Videos for", query["video_name"])
+    print("Entered Get Videos for", query["topic"])
     max_results = 5
 
     """
@@ -366,7 +366,7 @@ tools = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "video_name": {
+                    "topic": {
                         "type": "string",
                         # "enum": ["Class 10", "Class 11", "Class 12"],
                     }
@@ -498,13 +498,13 @@ def classify_intent(query, user_id):
                     arguments = json.loads(tool_call.function.arguments)
                     print("Arguments are:", arguments)
                     # Handle missing information
-                    required_fields = ["query"]
+                    required_fields = ["topic"]
                     missing_info = [
                         field for field in required_fields if field not in arguments
                     ]
                     print("missing info", missing_info)
                     if missing_info:
-                        prompt = f"Could you please specify the search term?"
+                        prompt = f"Could you please specify the {', '.join(missing_info)}"
                         append_to_history(user_id, "assistant", prompt)
                         output["final_output"] = prompt
                     else:
