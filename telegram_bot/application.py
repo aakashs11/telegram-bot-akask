@@ -1,6 +1,6 @@
 import logging
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
-from config.settings import TOKEN
+from config.settings import TELEGRAM_BOT_TOKEN
 from telegram_bot.handlers import start, handle_message
 
 # Configure logging
@@ -11,7 +11,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Create the Telegram bot Application
-application = Application.builder().token(TOKEN).build()
+application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
 # Add command and message handlers
 application.add_handler(CommandHandler("start", start))

@@ -1,5 +1,5 @@
+# .gitignore
+.env
+.env.prod
+.env.dev
 .venv
-.env
-.env
-deploy_and_set_webhook.sh
-service-account.json

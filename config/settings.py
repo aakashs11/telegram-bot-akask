@@ -9,14 +9,22 @@ import gspread
 # Load environment variables from .env file
 load_dotenv()
 
-# Retrieve environment variables
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+
+
+ENV = os.getenv("ENV", "production")  # Default to production
+
+if ENV == "production":
+    TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+else:
+    TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN_DEV") or os.getenv("TELEGRAM_BOT_TOKEN")
+
+
 NGROK_URL = os.getenv("NGROK_URL")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 CLOUD_RUN_URL = os.getenv("CLOUD_RUN_URL")
 
-if not TOKEN:
+if not TELEGRAM_BOT_TOKEN:
     raise ValueError("TELEGRAM_BOT_TOKEN is not set in the environment variables.")
 
 # Configure logging
@@ -27,7 +35,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 logger.debug(
-    f"Telegram Token: {TOKEN}, NGROK_URL: {NGROK_URL}, OPENAI_API_KEY: {OPENAI_API_KEY}"
+    f"Telegram Token: {TELEGRAM_BOT_TOKEN}, NGROK_URL: {NGROK_URL}, OPENAI_API_KEY: {OPENAI_API_KEY}"
 )
 
 # Google authentication and Sheets access
