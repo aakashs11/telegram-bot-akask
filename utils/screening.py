@@ -3,10 +3,6 @@ import asyncio
 from utils.openai_client import client
 
 async def screen_message(query):
-    """
-    Screens the user's message to ensure it's appropriate for students.
-    Returns a dict with keys 'is_valid' (bool) and 'comments' (str).
-    """
     screening_prompt = f"""
     You are an AI assistant that determines if a user's message is appropriate for students.
     - If the message contains inappropriate content (adult themes, profanity, hate speech, etc.), respond with:
@@ -22,26 +18,34 @@ async def screen_message(query):
     Respond only with the JSON object, and no additional text.
     "This is an educational query: {query}"
     """
-
     messages = [{"role": "system", "content": screening_prompt}]
     try:
         response = await asyncio.to_thread(
-            client.chat.completions.create,
-            model="gpt-3.5-turbo",
-            response_format={"type": "json_object"},
-            max_tokens=50,
-            messages=messages
-        )
-
+        client.chat.completions.create,
+        model="gpt-3.5-turbo",
+        response_format={"type": "json_object"},
+        max_tokens=50,
+        messages=messages
+        )   
         assistant_message = response.choices[0].message.content
         parsed_response = json.loads(assistant_message)
+        print(parsed_response)
 
+        # Validate keys in the response
         if "is_valid" in parsed_response and "comments" in parsed_response:
             return parsed_response
         else:
             raise ValueError("Invalid response structure: Missing required keys.")
 
-    except json.JSONDecodeError:
-        return {"is_valid": False, "comments": "Could not parse response."}
+    except json.JSONDecodeError as e:
+        print(
+            f"JSONDecodeError: {e} - Response was: {response.choices[0].message.content}"
+        )
+        return {"is_valid": "False", "comments": "Could not parse response."}
+
     except Exception as e:
-        return {"is_valid": False, "comments": f"An error occurred during screening: {e}"}
+        print(f"Unexpected error in screen_message: {e}")
+        return {
+            "is_valid": "False",
+            "comments": "An error occurred during screening.",
+        }

@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from telegram import Update
 from telegram_bot.application import application  # Import your telegram application instance
-from config.settings import TOKEN, CLOUD_RUN_URL
+from config.settings import TELEGRAM_BOT_TOKEN, CLOUD_RUN_URL
 
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ async def lifespan(app: FastAPI):
     if CLOUD_RUN_URL:
         webhook_url = f"{CLOUD_RUN_URL}/webhook"
         response = requests.get(
-            f"https://api.telegram.org/bot{TOKEN}/setWebhook",
+            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/setWebhook",
             params={"url": webhook_url},
         )
         if response.status_code == 200:
