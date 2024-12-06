@@ -6,8 +6,7 @@ import subprocess
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
+
 import gspread
 import openai
 import pytz
@@ -16,6 +15,8 @@ import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from telegram import Update
 from telegram.ext import (Application, CallbackContext, CommandHandler,
                           MessageHandler, filters)
@@ -154,8 +155,8 @@ def format_videos(video_data):
 
     formatted_videos = []
     for video in video_data:
-        title = video.get('title', 'No Title')
-        url = video.get('url', '#')
+        title = video.get("title", "No Title")
+        url = video.get("url", "#")
         # description = video.get('description', 'No Description')
 
         # Escape Markdown characters
@@ -284,9 +285,8 @@ def get_notes(query):
 
 
 
-def get_videos(query):
-    
-    print('Entered Get Videos for', query['query'])
+async def get_videos(query):
+    print("Entered Get Videos for", query["video_name"])
     max_results = 5
 
     """
@@ -300,16 +300,21 @@ def get_videos(query):
         list: A list of dictionaries containing video details (title, URL, description).
     """
     try:
-        youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=YOUTUBE_API_KEY)
+        youtube = await asyncio.to_thread(
+            build, 
+            YOUTUBE_API_SERVICE_NAME, 
+            YOUTUBE_API_VERSION, 
+            developerKey=YOUTUBE_API_KEY
+        )
         request = youtube.search().list(
             q=query,
             part="snippet",
-            channelId='UCsHJyKNfjVMr4EoXPw-8Jxw',
+            channelId="UCsHJyKNfjVMr4EoXPw-8Jxw",
             type="video",
-            maxResults=max_results
+            maxResults=max_results,
         )
-        response = request.execute()
-        print('response is',response)
+        response = await asyncio.to_thread(request.execute)
+        print("response is", response)
         results = []
         for item in response.get("items", []):
             video = {
@@ -323,8 +328,6 @@ def get_videos(query):
     except HttpError as e:
         print(f"An HTTP error {e.resp.status} occurred: {e.content}")
         return []
-
-
 
 
 tools = [
@@ -363,16 +366,15 @@ tools = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "query": {
+                    "video_name": {
                         "type": "string",
                         # "enum": ["Class 10", "Class 11", "Class 12"],
                     }
-                    },
                 },
-                "required": ["query"]
             },
-        }
-    
+            "required": ["query"],
+        },
+    },
 ]
 
 
@@ -449,7 +451,6 @@ def classify_intent(query, user_id):
             STRICTLY ask for missing details if required. STRICTLY DON'T ASSUME THE CLASS.
             STRICTLY Use get_notes tool if the intent is to get notes.
             STRICTLY Use get_videos tool if the intent is to get videos. 
-            STRICTLY Use get_playlists tool if the intent is to get a playlist.
             STRICTLY Keep responses under 30 words. Summarize where necessary as long messages will be truncated.
 
             """
