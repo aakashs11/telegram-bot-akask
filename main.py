@@ -350,7 +350,7 @@ def classify_intent(query, user_id):
         system_prompt = f"""
             CHECK CONVERSATION HISTORY BEFORE RESPONDING.
             You are ASK.ai a helpful assistant that provides notes and other asssistance based on user queries. 
-            Greet the user with a message saying who you are. Solve doubts or help with notes adn other items.
+            Greet the user with a message saying who you are. Solve doubts or help with notes ann other items. Keep it short and to the point.
             STRICTLY ask for missing details if required. STRICTLY DON'T ASSUME THE CLASS.
             STRICTLY Use get_notes tool if the intent is to get notes.
             STRICTLY Keep responses under 30 words. Summarize where necessary as long messages will be truncated.
@@ -365,7 +365,7 @@ def classify_intent(query, user_id):
             model="gpt-4o-mini",
             messages=user_history,
             tools=tools,
-            max_tokens=50,
+            max_tokens=100,
         )
         assistant_message = response.choices[0].message
 
