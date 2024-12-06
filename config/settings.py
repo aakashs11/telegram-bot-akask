@@ -8,17 +8,8 @@ import gspread
 
 # Load environment variables from .env file
 load_dotenv()
-
-
-
-ENV = os.getenv("ENV", "production")  # Default to production
-
-if ENV == "production":
-    TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-else:
-    TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN_DEV") or os.getenv("TELEGRAM_BOT_TOKEN")
-
-
+    
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 NGROK_URL = os.getenv("NGROK_URL")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
