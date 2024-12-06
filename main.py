@@ -427,7 +427,7 @@ def screen_message(query):
 
 
 # Classify intent function
-def classify_intent(query, user_id):
+async def classify_intent(query, user_id):
     output = {
         "output_screener": "",
         "output_intent": "",
@@ -486,7 +486,7 @@ def classify_intent(query, user_id):
                         output["final_output"] = prompt
                     else:
                         # Call the get_notes function
-                        result = get_notes(arguments)
+                        result = await get_notes(arguments)
                         append_to_history(user_id, "assistant", result)
                         output["final_output"] = result
                 except json.JSONDecodeError as e:
@@ -509,7 +509,7 @@ def classify_intent(query, user_id):
                         output["final_output"] = prompt
                     else:
                         # Call the get_notes function
-                        result = get_videos(arguments)
+                        result = await get_videos(arguments)
                         append_to_history(user_id, "assistant", result)
                         output["final_output"] = result
                 except json.JSONDecodeError as e:
