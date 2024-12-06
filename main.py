@@ -401,7 +401,7 @@ def classify_intent(query, user_id):
                 output["final_output"] = "Unsupported function call."
         else:
             # Regular assistant message
-            append_to_history(user_id, "assistant", assistant_message)
+            append_to_history(user_id, "assistant", assistant_message.content)
             output["final_output"] = assistant_message.content
 
     else:
