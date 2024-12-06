@@ -406,7 +406,7 @@ def classify_intent(query, user_id):
 
     else:
         return "Please use respectful language. [Warning]"
-    return output["final_output"]
+    return output
 
 
 # Handlers for Telegram
