@@ -248,7 +248,7 @@ def format_notes(data):
     return "\n".join(formatted_notes)
 
 
-def get_notes(query):
+async def get_notes(query):
     print("Entered Get Notes, Query is:", query, type(query))
 
     if isinstance(query, str):
@@ -378,7 +378,7 @@ tools = [
 ]
 
 
-def screen_message(query):
+async def screen_message(query):
     screening_prompt = f"""
     You are an AI assistant that determines if a user's message is appropriate for students.
     - If the message contains inappropriate content (adult themes, profanity, hate speech, etc.), respond with:
@@ -396,12 +396,13 @@ def screen_message(query):
     """
     messages = [{"role": "system", "content": screening_prompt}]
     try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            response_format={"type": "json_object"},
-            max_tokens=50,
-            messages=messages,
-        )
+        response = await asyncio.to_thread(
+        client.chat.completions.create,
+        model="gpt-3.5-turbo",
+        response_format={"type": "json_object"},
+        max_tokens=50,
+        messages=messages
+        )   
         assistant_message = response.choices[0].message.content
         parsed_response = json.loads(assistant_message)
         print(parsed_response)
@@ -439,7 +440,8 @@ async def classify_intent(query, user_id):
         user_conversations[user_id] = []
     user_history = user_conversations[user_id]
 
-    message_is_valid = screen_message(query)["is_valid"]
+    message_result = await screen_message(query)
+    message_is_valid = message_result["is_valid"]
     output["output_screener"] = message_is_valid
     if message_is_valid:
         append_to_history(user_id, "user", query)
@@ -554,7 +556,7 @@ async def handle_message(update: Update, context: CallbackContext):
     user_id = update.message.from_user.id
     first_name = update.message.from_user.first_name
     username = update.message.from_user.username
-    output = await asyncio.to_thread(classify_intent, user_message, user_id)
+    output = await classify_intent(user_message, user_id)
     response = output["final_output"]
     response = escape_markdown(response)
     await update.message.reply_text(response, parse_mode="MarkdownV2")
