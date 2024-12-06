@@ -402,7 +402,7 @@ def classify_intent(query, user_id):
         else:
             # Regular assistant message
             append_to_history(user_id, "assistant", assistant_message)
-            output["final_output"] = assistant_message
+            output["final_output"] = assistant_message.content
 
     else:
         return "Please use respectful language. [Warning]"
