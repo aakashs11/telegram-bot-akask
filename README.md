@@ -75,7 +75,7 @@ The system consists of several integrated components that work together to deliv
 Below are two Mermaid diagrams illustrating the overall system architecture and the internal query processing flow.
 
 #### System Architecture
-
+```mermaid
 sequenceDiagram
     participant U as "User"
     participant T as "Telegram Bot"
@@ -94,7 +94,7 @@ sequenceDiagram
     A->>T: Return final assistant message
     T->>U: Reply message (Markdown formatted)
     T->>L: Log interaction details
-
+```
 ```mermaid
 flowchart TD
     A[User sends message on Telegram] --> B[Telegram Bot]
@@ -108,3 +108,4 @@ flowchart TD
     H & I --> J[Format Response]
     J --> K[Send reply via Telegram Bot]
     K --> L[Log conversation in Google Sheets]
+```
