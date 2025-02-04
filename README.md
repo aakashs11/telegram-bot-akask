@@ -88,7 +88,7 @@ flowchart TD
     G --> I[YouTube API Request]
     H & I --> J[Format Response]
     J --> K[Send reply via Telegram Bot]
-    K --> L[Log conversation in Google Sheets]'''
+    K --> L[Log conversation in Google Sheets]```
 
 ```mermaid
 sequenceDiagram
