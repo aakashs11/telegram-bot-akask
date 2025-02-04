@@ -76,6 +76,25 @@ Below are two Mermaid diagrams illustrating the overall system architecture and 
 
 #### System Architecture
 
+sequenceDiagram
+    participant U as "User"
+    participant T as "Telegram Bot"
+    participant F as "FastAPI"
+    participant A as "AI Classifier"
+    participant G as "get_notes / get_videos"
+    participant L as "Logger (Google Sheets)"
+    
+    U->>T: Sends query
+    T->>F: POST /webhook
+    F->>A: classify_intent(query)
+    A->>A: screen_message(query)
+    A->>A: Append conversation history
+    A->>G: Call appropriate tool based on intent
+    G-->>A: Return formatted notes/video links
+    A->>T: Return final assistant message
+    T->>U: Reply message (Markdown formatted)
+    T->>L: Log interaction details
+
 ```mermaid
 flowchart TD
     A[User sends message on Telegram] --> B[Telegram Bot]
