@@ -90,7 +90,7 @@ flowchart TD
     J --> K[Send reply via Telegram Bot]
     K --> L[Log conversation in Google Sheets]
 
-#### Internal Query Processing Flow
+
 sequenceDiagram
     participant U as User
     participant T as Telegram Bot
@@ -108,5 +108,5 @@ sequenceDiagram
     G-->>A: Return formatted notes/video links
     A->>T: Return final assistant message
     T->>U: Reply message (Markdown formatted)
-    T->>L: Log interaction details
+    T->>L: Log interaction details```
 
