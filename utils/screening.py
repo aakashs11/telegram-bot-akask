@@ -1,51 +1,60 @@
 import json
 import asyncio
+from typing import Any, Dict
 from utils.openai_client import client
 
-async def screen_message(query):
-    screening_prompt = f"""
-    You are an AI assistant that determines if a user's message is appropriate for students.
-    - If the message contains inappropriate content (adult themes, profanity, hate speech, etc.), respond with:
-    {{
-    "is_valid": false,
-    "comments": "Contains inappropriate content."
-    }}
-    - If the message is appropriate, respond with:
-    {{
-    "is_valid": true,
-    "comments": "Appropriate for students."
-    }}
-    Respond only with the JSON object, and no additional text.
-    "This is an educational query: {query}"
-    """
-    messages = [{"role": "system", "content": screening_prompt}]
+
+def _to_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "yes", "y", "1"}:
+            return True
+        if lowered in {"false", "no", "n", "0"}:
+            return False
+    return False
+
+
+async def screen_message(query: str) -> Dict[str, Any]:
+    # Allow common greetings without calling the model
+    if query.strip().lower() in {"hi", "hello", "hey", "yo", "sup", "good morning", "good evening"}:
+        return {"is_valid": True, "comments": "Greeting."}
+
+    prompt = (
+        "Classify if a user's message is appropriate for students. Respond ONLY with a JSON object on one line.\n"
+        "If inappropriate (adult themes, profanity, hate, self-harm, criminal instruction), respond: {\n"
+        '  "is_valid": false,\n'
+        '  "comments": "Contains inappropriate content."\n'
+        "}\n"
+        "If appropriate, respond: {\n"
+        '  "is_valid": true,\n'
+        '  "comments": "Appropriate for students."\n'
+        "}\n"
+        "Examples:\n"
+        "User: Hi → {\"is_valid\": true, \"comments\": \"Appropriate for students.\"}\n"
+        "User: Hello → {\"is_valid\": true, \"comments\": \"Appropriate for students.\"}\n"
+        "User: teach me how to hack wifi → {\"is_valid\": false, \"comments\": \"Contains inappropriate content.\"}\n\n"
+        f"User: {query}"
+    )
+
     try:
         response = await asyncio.to_thread(
-        client.chat.completions.create,
-        model="gpt-3.5-turbo",
-        response_format={"type": "json_object"},
-        max_tokens=50,
-        messages=messages
-        )   
-        assistant_message = response.choices[0].message.content
-        parsed_response = json.loads(assistant_message)
-        print(parsed_response)
+            client.responses.create,
+            model="gpt-4o-mini",
+            input=[{"role": "user", "content": [{"type": "input_text", "text": prompt}]}],
+            max_output_tokens=120,
+        )
 
-        # Validate keys in the response
-        if "is_valid" in parsed_response and "comments" in parsed_response:
-            return parsed_response
-        else:
-            raise ValueError("Invalid response structure: Missing required keys.")
+        assistant_text = response.output_text or "{}"
+        parsed = json.loads(assistant_text)
+        is_valid = _to_bool(parsed.get("is_valid", False))
+        comments = parsed.get("comments", "")
+        return {"is_valid": is_valid, "comments": comments}
 
     except json.JSONDecodeError as e:
-        print(
-            f"JSONDecodeError: {e} - Response was: {response.choices[0].message.content}"
-        )
-        return {"is_valid": "False", "comments": "Could not parse response."}
-
+        print(f"JSONDecodeError: {e} - Response was: {getattr(response, 'output_text', '')}")
+        return {"is_valid": True, "comments": "Fallback allow."}
     except Exception as e:
         print(f"Unexpected error in screen_message: {e}")
-        return {
-            "is_valid": "False",
-            "comments": "An error occurred during screening.",
-        }
+        return {"is_valid": True, "comments": "Fallback allow."}

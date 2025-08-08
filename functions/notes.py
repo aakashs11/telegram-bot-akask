@@ -1,3 +1,4 @@
+import os
 import json
 from pathlib import Path
 from utils.formatting import format_notes, escape_markdown
@@ -12,8 +13,14 @@ async def get_notes(query):
     if isinstance(query, str):
         query = json.loads(query)
 
-    # Adjust the path to index-v2.json if needed
-    index_path = Path("/app/data/index.json")
+    # Portable path resolution for Windows/local and container
+    env_index = os.getenv("INDEX_PATH")
+    if env_index:
+        index_path = Path(env_index)
+    else:
+        # Try repo-relative data path; fall back to container path
+        repo_data_path = Path(__file__).resolve().parents[1] / "data" / "index.json"
+        index_path = repo_data_path if repo_data_path.exists() else Path("/app/data/index.json")
     if not index_path.exists():
         return "Notes index file not found!"
 

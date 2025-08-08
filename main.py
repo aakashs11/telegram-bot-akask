@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from telegram import Update
 from telegram_bot.application import application  # Import your telegram application instance
-from config.settings import TELEGRAM_BOT_TOKEN, CLOUD_RUN_URL
+from config.settings import TELEGRAM_BOT_TOKEN, CLOUD_RUN_URL, get_sheet
 
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,17 @@ async def lifespan(app: FastAPI):
         logger.warning(
             "CLOUD_RUN_URL is not set. The webhook will need to be configured manually."
         )
+
+    # Lazily initialize Google Sheet and place in bot_data for handlers to use
+    try:
+        sheet = get_sheet()
+        if sheet is not None:
+            application.bot_data["sh"] = sheet
+            logger.info("Google Sheet handle registered in application.bot_data.")
+        else:
+            logger.info("Google Sheet unavailable; proceeding without logging.")
+    except Exception as exc:
+        logger.warning(f"Failed to prepare Google Sheet: {exc}")
     yield  # Allow the application to run
 
 app = FastAPI(lifespan=lifespan)
