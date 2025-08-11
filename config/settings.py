@@ -16,6 +16,13 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 CLOUD_RUN_URL = os.getenv("CLOUD_RUN_URL")
 SHEET_ID = os.getenv("SHEET_ID", "1-1Y4O4RAa-XgtAcGB_tEzXE3dta8pYxCgzj5o9FRqM0")
+PROVIDER = os.getenv("PROVIDER", "openai")
+MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
+TEMPERATURE = float(os.getenv("TEMPERATURE", "0.2"))
+MAX_TOKENS = int(os.getenv("MAX_TOKENS", "300"))
+RETRIEVER_STORE_PATH = os.getenv("RETRIEVER_STORE_PATH", "retriever_store")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
+AGENT_SQLITE_PATH = os.getenv("AGENT_SQLITE_PATH", "agent_memory.db")
 
 if not TELEGRAM_BOT_TOKEN:
     raise ValueError("TELEGRAM_BOT_TOKEN is not set in the environment variables.")

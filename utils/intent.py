@@ -5,7 +5,7 @@ import logging
 
 from utils.screening import screen_message
 from utils.common import append_to_history
-from utils.openai_client import client, build_responses_messages
+from utils.openai_client import get_client, build_responses_messages
 from functions.notes import get_notes
 from functions.videos import get_videos
 from utils.common import user_conversations
@@ -13,8 +13,8 @@ from utils.common import user_conversations
 
 async def classify_intent(query: str, user_id: int, sh: Any = None) -> Dict[str, Any]:
     """
-    Classify intent and execute actions using OpenAI Responses API with a JSON control protocol.
-
+    Basic intent classification using OpenAI Responses API.
+    
     Returns a dict with keys: output_screener, output_intent, output_entitites, final_output
     """
     output: Dict[str, Any] = {
@@ -25,95 +25,7 @@ async def classify_intent(query: str, user_id: int, sh: Any = None) -> Dict[str,
     }
 
     try:
-        # Quick slot-fill check: if last system message holds PENDING_SLOTS, try to auto-fill from current user query
-        pending = None
-        history = user_conversations.get(user_id, [])
-        last_pending_msg = next(
-            (
-                m
-                for m in reversed(history)
-                if m.get("role") == "system"
-                and isinstance(m.get("content", ""), str)
-                and m["content"].startswith("PENDING_SLOTS::")
-            ),
-            None,
-        )
-        if last_pending_msg is not None:
-            try:
-                pending = json.loads(last_pending_msg["content"].split("::", 1)[1])
-            except Exception:
-                pending = None
-        if pending:
-            if pending.get("action") == "get_notes":
-                args = pending.get("filled", {})
-                # naive fills from current query text
-                text = query.lower()
-                if "class 10" in text and "class" not in args:
-                    args["class"] = "Class 10"
-                if "class 11" in text and "class" not in args:
-                    args["class"] = "Class 11"
-                if "class 12" in text and "class" not in args:
-                    args["class"] = "Class 12"
-                for subj in ["ai","it","cs","ip"]:
-                    if subj in text and "subject" not in args:
-                        args["subject"] = subj.upper()
-                if "notes" in text and "type" not in args:
-                    args["type"] = "Notes"
-                missing = [f for f in ["type","class","subject"] if f not in args]
-                if not missing:
-                    result = await get_notes(args)
-                    append_to_history(user_id, "assistant", result)
-                    output["final_output"] = result
-                    return output
-            elif pending.get("action") == "get_videos":
-                args = pending.get("filled", {})
-                if "topic" not in args:
-                    args["topic"] = query
-                if args.get("topic"):
-                    result = await get_videos(args)
-                    append_to_history(user_id, "assistant", result)
-                    output["final_output"] = result
-                    return output
-
-        # Heuristic fast-path for repository notes/videos to ensure links
-        text_lower = query.strip().lower()
-        if any(k in text_lower for k in ["notes", "sqp", "syllabus", "books"]):
-            inferred: Dict[str, Any] = {}
-            if "class 10" in text_lower:
-                inferred["class"] = "Class 10"
-            elif "class 11" in text_lower:
-                inferred["class"] = "Class 11"
-            elif "class 12" in text_lower:
-                inferred["class"] = "Class 12"
-            for subj in ["ai", "it", "cs", "ip"]:
-                if f" {subj} " in f" {text_lower} ":
-                    inferred["subject"] = subj.upper()
-                    break
-            if "sqp" in text_lower or "sample question" in text_lower:
-                inferred["type"] = "Sample Question Papers SQP"
-            elif "syllabus" in text_lower:
-                inferred["type"] = "Syllabus"
-            elif "books" in text_lower:
-                inferred["type"] = "Books"
-            elif "notes" in text_lower:
-                inferred["type"] = "Notes"
-            missing_fast = [f for f in ["type", "class", "subject"] if f not in inferred]
-            if missing_fast:
-                context_state = {"action": "get_notes", "needed": missing_fast, "filled": inferred}
-                user_conversations[user_id].append({"role": "system", "content": f"PENDING_SLOTS::{json.dumps(context_state)}"})
-                ask = f"Please specify: {', '.join(missing_fast)}."
-                append_to_history(user_id, "assistant", ask)
-                return {**output, "final_output": ask}
-            else:
-                result = await get_notes(inferred)
-                append_to_history(user_id, "assistant", result)
-                return {**output, "final_output": result}
-
-        if any(k in text_lower for k in ["video", "videos"]):
-            res = await get_videos({"topic": query})
-            append_to_history(user_id, "assistant", res)
-            return {**output, "final_output": res}
-
+        # Screen message for appropriateness
         screening = await screen_message(query)
         is_valid = bool(screening.get("is_valid", False))
         output["output_screener"] = is_valid
@@ -121,98 +33,100 @@ async def classify_intent(query: str, user_id: int, sh: Any = None) -> Dict[str,
             output["final_output"] = "Please use respectful language. [Warning]"
             return output
 
+        # Get conversation history first
+        history = user_conversations.get(user_id, [])
+        
+        # Enhanced system prompt with conversation context
+        recent_context = ""
+        if len(history) > 0:
+            last_user_msg = next((m for m in reversed(history) if m.get("role") == "user"), None)
+            last_assistant_msg = next((m for m in reversed(history) if m.get("role") == "assistant"), None)
+            if last_assistant_msg and "specify:" in last_assistant_msg.get("content", ""):
+                recent_context = f"\n\nCONTEXT: User was just asked to specify missing info. Current user message is likely providing that missing information."
+
         system_prompt = (
-            "You are ASK.ai, a concise assistant for students.\n"
-            "Respond in under 30 words. Use a strict JSON control format ONLY.\n"
-            "JSON schema: {\n"
-            '  "action": "get_notes" | "get_videos" | "reply",\n'
-            '  "arguments": {"class"?: string, "subject"?: string, "type"?: string, "topic"?: string},\n'
-            '  "reply": string\n'
-            "}\n"
-            "- If the user wants links to notes/books/syllabus/SQP: set action=get_notes and fill arguments; DO NOT assume class/subject; ask for missing.\n"
-            "- If the user wants videos by topic: set action=get_videos with {topic}.\n"
-            "- Otherwise set action=reply with a short helpful message.\n"
+            "You are a database retrieval assistant. You MUST respond with JSON only.\n"
+            "NEVER write educational content. ONLY retrieve links from database.\n\n"
+            "Examples:\n"
+            'User: "I need class 10 AI notes" → {"action": "get_notes", "arguments": {"class": "Class 10", "subject": "AI", "type": "Notes"}, "reply": ""}\n'
+            'User: "class 12 CS books" → {"action": "get_notes", "arguments": {"class": "Class 12", "subject": "CS", "type": "Books"}, "reply": ""}\n'
+            'User: "hello" → {"action": "reply", "arguments": {}, "reply": "Hi! What study materials do you need?"}\n\n'
+            "STRICT RULES:\n"
+            "1. For ANY study material request → use get_notes action\n"
+            "2. For videos → use get_videos action\n"
+            "3. class: 'Class 10', 'Class 11', or 'Class 12'\n"
+            "4. subject: 'AI', 'IT', 'CS', or 'IP'\n"
+            "5. type: 'Notes', 'Books', 'Syllabus', or 'Sample Question Papers SQP'\n"
+            "6. If missing info → ask in reply field\n"
+            "7. NEVER generate educational content\n"
+            f"{recent_context}"
         )
 
-        # Ensure system prompt is first in a new conversation, then the user message
-        history = user_conversations.get(user_id, [])
+        # Add to conversation history
         if not history:
             append_to_history(user_id, "system", system_prompt)
         append_to_history(user_id, "user", query)
 
-        # Build messages for Responses API (must use input_text per latest SDK)
-        full_history_messages = build_responses_messages(user_conversations[user_id])
+        # Call OpenAI Responses API
+        messages = build_responses_messages(user_conversations[user_id])
+        resp = await asyncio.to_thread(
+            get_client().responses.create,
+            model="gpt-4o",
+            input=messages,
+            max_output_tokens=300,
+        )
 
+        # Parse response
+        assistant_text = getattr(resp, "output_text", "{}")
         try:
-            resp = await asyncio.to_thread(
-                client.responses.create,
-                model="gpt-4o-mini",
-                input=full_history_messages,
-                max_output_tokens=300,
-            )
-        except Exception as history_err:
-            logging.getLogger(__name__).warning(
-                f"Responses API failed with full history: {history_err}. Retrying with system+user only."
-            )
-            minimal_ctx = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": query},
-            ]
-            minimal_messages = build_responses_messages(minimal_ctx)
-            resp = await asyncio.to_thread(
-                client.responses.create,
-                model="gpt-4o-mini",
-                input=minimal_messages,
-                max_output_tokens=300,
-            )
-
-        assistant_json_text = getattr(resp, "output_text", None) or "{}"
-        # Heuristic: try to parse JSON; if it fails, fall back to reply mode
-        try:
-            decision = json.loads(assistant_json_text)
-        except Exception as parse_err:
-            logging.getLogger(__name__).warning(
-                f"Assistant output not JSON. Using reply fallback. output_text={assistant_json_text[:200]}... error={parse_err}"
-            )
-            decision = {"action": "reply", "reply": assistant_json_text}
+            # Try to extract JSON if there's extra text
+            if '{' in assistant_text and '}' in assistant_text:
+                start = assistant_text.find('{')
+                end = assistant_text.rfind('}') + 1
+                json_text = assistant_text[start:end]
+                decision = json.loads(json_text)
+            else:
+                decision = json.loads(assistant_text)
+        except Exception as e:
+            print(f"JSON parsing error: {e}")
+            print(f"Raw response text: '{assistant_text}'")
+            print(f"Response length: {len(assistant_text)}")
+            decision = {"action": "reply", "reply": "Please specify class, subject, and type for your notes."}
 
         action = decision.get("action", "reply")
-        arguments = decision.get("arguments", {}) or {}
-        suggested_reply = decision.get("reply", "")
+        arguments = decision.get("arguments", {})
+        reply_text = decision.get("reply", "")
 
-        # Execute actions
+        # Execute action
         if action == "get_notes":
-            missing = [f for f in ["type", "class", "subject"] if f not in arguments]
-            if missing:
-                # Persist pending slots for next user reply
-                context_state = {"action": "get_notes", "needed": missing, "filled": arguments}
-                user_conversations[user_id].append({"role": "system", "content": f"PENDING_SLOTS::{json.dumps(context_state)}"})
-                msg = f"Please specify: {', '.join(missing)}."
-                append_to_history(user_id, "assistant", msg)
-                output["final_output"] = msg
-            else:
+            if all(k in arguments for k in ["class", "subject", "type"]):
+                print(f"Calling get_notes with: {arguments}")  # Debug
                 result = await get_notes(arguments)
                 append_to_history(user_id, "assistant", result)
                 output["final_output"] = result
-        elif action == "get_videos":
-            if not arguments.get("topic"):
-                context_state = {"action": "get_videos", "needed": ["topic"], "filled": arguments}
-                user_conversations[user_id].append({"role": "system", "content": f"PENDING_SLOTS::{json.dumps(context_state)}"})
-                msg = "Please specify the topic for videos."
+            else:
+                missing = [k for k in ["class", "subject", "type"] if k not in arguments]
+                msg = f"Please specify: {', '.join(missing)}. Available: Classes (10/11/12), Subjects (AI/IT/CS/IP), Types (Notes/Books/Syllabus/Sample Question Papers SQP)"
                 append_to_history(user_id, "assistant", msg)
                 output["final_output"] = msg
-            else:
+        elif action == "get_videos":
+            if arguments.get("topic"):
                 result = await get_videos(arguments)
                 append_to_history(user_id, "assistant", result)
                 output["final_output"] = result
+            else:
+                msg = "Please specify a topic for videos."
+                append_to_history(user_id, "assistant", msg)
+                output["final_output"] = msg
         else:
-            reply = suggested_reply or "How can I help with notes or videos?"
+            reply = reply_text or "How can I help you with notes or videos?"
             append_to_history(user_id, "assistant", reply)
             output["final_output"] = reply
 
         return output
 
     except Exception as e:
+        logging.getLogger(__name__).error(f"Intent classification error: {e}")
         fallback = "Sorry, I had trouble. Please try again."
         append_to_history(user_id, "assistant", fallback)
         output["final_output"] = fallback

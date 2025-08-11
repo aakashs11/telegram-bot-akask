@@ -1,7 +1,7 @@
 import json
 import asyncio
 from typing import Any, Dict
-from utils.openai_client import client
+from utils.openai_client import get_client
 
 
 def _to_bool(value: Any) -> bool:
@@ -40,8 +40,8 @@ async def screen_message(query: str) -> Dict[str, Any]:
 
     try:
         response = await asyncio.to_thread(
-            client.responses.create,
-            model="gpt-4o-mini",
+            get_client().responses.create,
+            model="gpt-4o",
             input=[{"role": "user", "content": [{"type": "input_text", "text": prompt}]}],
             max_output_tokens=120,
         )

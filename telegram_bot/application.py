@@ -1,11 +1,11 @@
 import logging
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from config.settings import TELEGRAM_BOT_TOKEN
-from telegram_bot.handlers import start, handle_message
+from telegram_bot.handlers import start_command, handle_message
 
 # Configure logging
 logging.basicConfig(
-    level=logging.DEBUG,  # You can change this to INFO or ERROR in production
+    level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
@@ -14,5 +14,5 @@ logger = logging.getLogger(__name__)
 application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
 # Add command and message handlers
-application.add_handler(CommandHandler("start", start))
+application.add_handler(CommandHandler("start", start_command))
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))

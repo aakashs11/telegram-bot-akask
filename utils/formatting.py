@@ -27,8 +27,8 @@ def format_notes(data):
                 recurse_format(value, parent_keys + [key])
             else:
                 display_name = " > ".join(parent_keys + [key])
-                escaped_name = escape_markdown(display_name)
-                formatted_notes.append(f"[{escaped_name}]({value})")
+                # Clean formatting for Telegram without markdown escaping
+                formatted_notes.append(f"📄 {display_name}\n🔗 {value}\n")
 
     recurse_format(data)
     return "\n".join(formatted_notes)

@@ -3,10 +3,15 @@ from typing import List, Dict, Any
 
 from openai import OpenAI
 
+# Lazy initialization of the OpenAI client
+_client = None
 
-# Instantiate the official OpenAI client. The SDK will read the API key from
-# the OPENAI_API_KEY environment variable. You can also pass it explicitly.
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+def get_client():
+    """Get or create the OpenAI client instance."""
+    global _client
+    if _client is None:
+        _client = OpenAI()
+    return _client
 
 
 def build_responses_messages(history: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
