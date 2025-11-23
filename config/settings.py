@@ -29,7 +29,7 @@ YOUTUBE_API_KEY = load_secret("youtube-api-key") or os.getenv("YOUTUBE_API_KEY")
 CLOUD_RUN_URL = load_secret("cloud-run-url") or os.getenv("CLOUD_RUN_URL")
 
 # Google Sheets
-SHEET_ID = load_secret("google-sheet-id") or os.getenv("SHEET_ID", "1-1Y4O4RAa-XgtAcGB_tEzXE3dta8pYxCgzj5o9FRqM0")
+SHEET_ID = load_secret("google-sheet-id") or os.getenv("SHEET_ID")
 
 # Google Drive
 DRIVE_FOLDER_ID = load_secret("drive-folder-id") or os.getenv("DRIVE_FOLDER_ID", "")  # Root folder to scan
