@@ -184,7 +184,7 @@ Bot: 🎥 Found 5 videos:
 
 ## 🛠️ Development Workflow
 
-See [DEVELOPMENT_WORKFLOW.md](./.gemini/antigravity/brain/.../DEVELOPMENT_WORKFLOW.md) for complete guide.
+See [DEVELOPMENT_WORKFLOW.md](./DEVELOPMENT_WORKFLOW.md) for complete guide.
 
 ### Quick Reference
 
