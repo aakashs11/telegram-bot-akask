@@ -36,12 +36,19 @@ def format_notes(data):
 def format_videos(video_data):
     if not isinstance(video_data, list):
         return "Video data not in expected format."
-
-    formatted_videos = []
-    for video in video_data:
+    
+    if not video_data:
+        return "No videos found for this topic."
+    
+    # Header with count
+    count = len(video_data)
+    formatted_videos = [f"🎥 **Found {count} video{'s' if count > 1 else ''}:**\n"]
+    
+    # Format each video with number and emoji
+    for idx, video in enumerate(video_data, 1):
         title = video.get("title", "No Title")
         url = video.get("url", "#")
         escaped_title = escape_markdown(title)
-        formatted_videos.append(f"[{escaped_title}]({url})")
-
-    return "\n\n".join(formatted_videos)
+        formatted_videos.append(f"{idx}. 📺 [{escaped_title}]({url})")
+    
+    return "\n".join(formatted_videos)

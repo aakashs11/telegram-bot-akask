@@ -50,15 +50,23 @@ class NotesCommand:
                 reply_markup=reply_markup
             )
             
-            # Schedule message deletion after 30 seconds
-            context.job_queue.run_once(
-                lambda ctx: ctx.bot.delete_message(
-                    chat_id=button_msg.chat_id,
-                    message_id=button_msg.message_id
-                ),
-                when=30,
-                name=f"delete_notes_button_{button_msg.message_id}"
-            )
+            # Schedule message deletion after 30 seconds using background task
+            import asyncio
+            async def auto_delete():
+                await asyncio.sleep(30)
+                try:
+                    await context.bot.delete_message(
+                        chat_id=button_msg.chat_id,
+                        message_id=button_msg.message_id
+                    )
+                    logger.info(f"Auto-deleted button message {button_msg.message_id}")
+                except Exception as e:
+                    logger.warning(f"Could not auto-delete button: {e}")
+            
+            # Start background task (fire and forget)
+            import asyncio
+            asyncio.ensure_future(auto_delete())
+            
             return
         
         # PRIVATE CHAT: Don't interfere with conversational flow
