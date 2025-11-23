@@ -65,9 +65,6 @@ async def run_sync_job(context):
     # Run synchronous sync_drive_to_index in a thread pool
     await loop.run_in_executor(None, drive_sync_service.sync_drive_to_index)
 
-# Initialize Sync Service (renamed to avoid conflict with local var if any)
-drive_sync_service = SyncService(drive_service)
-
 # Schedule sync every 5 minutes (300 seconds) to be safe on API quota
 if application.job_queue:
     application.job_queue.run_repeating(run_sync_job, interval=300, first=10)
