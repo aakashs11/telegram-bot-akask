@@ -116,6 +116,16 @@ curl -X POST "https://api.telegram.org/bot<YOUR_TOKEN>/setWebhook" \
 python main.py
 ```
 
+### Step 7: Sync Content (Important!)
+
+The bot needs to know what files are in your Google Drive. Run the sync script:
+
+```bash
+python scripts/sync_drive.py
+```
+
+This scans your `DRIVE_FOLDER_ID` and updates the index. **Run this whenever you add new files to Drive.**
+
 ---
 
 ## ☁️ Production Deployment (Google Cloud Run)
@@ -238,6 +248,14 @@ You: I need Class 10 AI notes
 Bot: 📚 Here are the Class 10 AI resources...
 ```
 
+### Step 7: Post-Deployment Setup (Sync Content)
+
+To make your Drive content available to the production bot, run the sync script locally (it updates the shared Google Sheet/Index):
+
+```bash
+python scripts/sync_drive.py
+```
+
 ---
 
 ## 🎯 Common Commands Cheat Sheet
@@ -251,6 +269,9 @@ Bot: 📚 Here are the Class 10 AI resources...
 # Manual start
 pipenv shell
 python main.py
+
+# Sync Drive content
+python scripts/sync_drive.py
 
 # Check ngrok status
 curl http://localhost:4040/api/tunnels
