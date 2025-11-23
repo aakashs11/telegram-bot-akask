@@ -12,6 +12,7 @@ google-cloud-secret-manager==2.25.0
 
 # YouTube search
 requests==2.32.3
+aiohttp==3.11.11
 
 # Basic utilities
 pydantic==2.10.2
