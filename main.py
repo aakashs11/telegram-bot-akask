@@ -21,9 +21,9 @@ async def lifespan(app: FastAPI):
     # Set the Telegram webhook if CLOUD_RUN_URL is provided
     if CLOUD_RUN_URL:
         webhook_url = f"{CLOUD_RUN_URL}/webhook"
-        response = requests.get(
+        response = requests.post(
             f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/setWebhook",
-            params={"url": webhook_url},
+            json={"url": webhook_url},
         )
         if response.status_code == 200:
             logger.info(f"Webhook set successfully: {webhook_url}")

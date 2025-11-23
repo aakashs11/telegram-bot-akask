@@ -8,7 +8,7 @@ import logging
 from typing import List, Optional
 from telegram_bot.domain.notes import Note, NoteRepository
 from telegram_bot.services.drive_service import DriveService
-from config.settings import get_sheet
+from config.settings import get_sheet, DRIVE_CONFIG_FOLDER_NAME, DRIVE_FOLDER_ID
 
 logger = logging.getLogger(__name__)
 

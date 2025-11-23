@@ -58,8 +58,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             logger.error("Services not initialized in bot_data")
             return
 
-        # --- SPAM DETECTION & LOGGING ---
-        # Check all messages for spam/harmful content
+        # --- GROUP CHAT LOGIC (Check before spam detection to save API calls) ---
+        if chat_type in ['group', 'supergroup']:
+            # Only respond if mentioned
+            bot_username = context.bot.username
+            if f"@{bot_username}" not in user_message:
+                return  # Skip spam check for non-mentions
+            
+            # Remove mention from message for cleaner processing
+            user_message = user_message.replace(f"@{bot_username}", "").strip()
+            if not user_message:
+                await update.message.reply_text("Hi! How can I help you?")
+                return
+
+        # --- SPAM DETECTION & LOGGING (After filtering non-relevant messages) ---
+        # Check relevant messages for spam/harmful content
         mod_result = await moderation_service.check_message(user_message)
         
         # Log to Google Sheets (if available)
@@ -69,19 +82,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if mod_result.is_flagged:
             action = "Deleted"
             # Delete spam message
-            # Delete spam message
             try:
                 await update.message.delete()
                 
                 # Send PRIVATE warning to user
+                warning_text = (
+                    "⚠️ **Safety Warning**\n\n"
+                    "Your message was deleted because it violated our safety guidelines.\n"
+                    "Please adhere to community standards."
+                )
+                
                 try:
                     await context.bot.send_message(
                         chat_id=user_id,
-                        text=(
-                            "⚠️ **Safety Warning**\n\n"
-                            "Your message in the group was deleted because it violated our safety guidelines.\n"
-                            "Please adhere to community standards."
-                        ),
+                        text=warning_text,
                         parse_mode="Markdown"
                     )
                 except Exception as e:
@@ -107,19 +121,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # Stop processing if flagged
         if mod_result.is_flagged:
             return
-
-        # --- GROUP CHAT LOGIC ---
-        if chat_type in ['group', 'supergroup']:
-            # Only respond if mentioned
-            bot_username = context.bot.username
-            if f"@{bot_username}" not in user_message:
-                return
-            
-            # Remove mention from message for cleaner processing
-            user_message = user_message.replace(f"@{bot_username}", "").strip()
-            if not user_message:
-                await update.message.reply_text("Hi! How can I help you?")
-                return
 
         # --- PRIVATE CHAT LOGIC ---
         # (Proceeds to agent processing below)
