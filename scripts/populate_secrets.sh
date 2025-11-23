@@ -18,7 +18,7 @@ echo ""
 echo "Adding secret values..."
 
 # Add DEV values (replace with PROD values for production!)
-echo -n "8004326610:AAGlP2WDpNNJAd2MY-6R-wbE8rMQW4gpDOQ" | gcloud secrets versions add telegram-bot-token --data-file=-
+echo -n "7559131288:AAF2gc-z9G3N1AnIwImcKES07ITBFnMJXqM" | gcloud secrets versions add telegram-bot-token --data-file=-
 echo "✅ telegram-bot-token added"
 
 echo -n "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" | gcloud secrets versions add openai-api-key --data-file=-
