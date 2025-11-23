@@ -64,8 +64,13 @@ data/index.json
 # Test files
 test_*.py
 
-# Secret population script
+# Secret files and scripts
 populate_secrets.sh
+**/populate_secrets*.sh
+**/*secret*.sh
+**/*secrets*.sh
+*secret*.json
+*secrets*.json
 
 # Deploy key
 github-deploy-key.txt
