@@ -164,7 +164,7 @@ gcloud run services describe telegram-bot --region asia-south1
 
 ### 9️⃣ **Verify Production Bot**
 
-**Test PROD bot** (token `7559131288:AAF...`):
+**Test PROD bot** (token `PROD_BOT_TOKEN_HERE`):
 
 ```bash
 # Check webhook
