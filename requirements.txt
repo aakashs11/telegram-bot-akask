@@ -9,6 +9,7 @@ python-dotenv==1.0.1
 gspread==6.1.4
 google-auth==2.36.0
 google-cloud-secret-manager==2.25.0
+google-api-python-client==2.154.0
 
 # YouTube search
 requests==2.32.3
