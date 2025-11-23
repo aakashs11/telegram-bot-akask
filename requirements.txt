@@ -8,7 +8,7 @@ python-dotenv==1.0.1
 # Google Sheets integration (optional)
 gspread==6.1.4
 google-auth==2.36.0
-google-cloud-secret-manager==2.36.0
+google-cloud-secret-manager==2.25.0
 
 # YouTube search
 requests==2.32.3
