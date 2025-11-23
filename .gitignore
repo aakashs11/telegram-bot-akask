@@ -66,3 +66,7 @@ test_*.py
 
 # Secret population script
 populate_secrets.sh
+
+# Deploy key
+github-deploy-key.txt
+github-deploy-key.json
