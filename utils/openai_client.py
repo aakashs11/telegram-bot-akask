@@ -7,10 +7,13 @@ from openai import OpenAI
 _client = None
 
 def get_client():
-    """Get or create the OpenAI client instance."""
+    """Get or create OpenAI client instance"""
     global _client
     if _client is None:
-        _client = OpenAI()
+        from config.settings import OPENAI_API_KEY
+        if not OPENAI_API_KEY:
+            raise ValueError("OPENAI_API_KEY is not configured in settings")
+        _client = OpenAI(api_key=OPENAI_API_KEY)
     return _client
 
 
