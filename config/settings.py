@@ -8,18 +8,31 @@ from dotenv import load_dotenv
 # Load environment variables from .env file (local dev convenience)
 load_dotenv()
 
+# Check if running in Cloud Run (production)
+IS_PRODUCTION = os.getenv("K_SERVICE") is not None
 
-# Core configuration via environment variables
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+# Initialize secret loader for production
+if IS_PRODUCTION:
+    from utils.secrets import load_secret
+else:
+    # In dev, just use os.getenv
+    def load_secret(name, default=None):
+        env_var = name.upper().replace('-', '_')
+        return os.getenv(env_var, default)
+
+
+# Core configuration - automatically uses Secret Manager in production
+TELEGRAM_BOT_TOKEN = load_secret("telegram-bot-token") or os.getenv("TELEGRAM_BOT_TOKEN")
 NGROK_URL = os.getenv("NGROK_URL")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
-CLOUD_RUN_URL = os.getenv("CLOUD_RUN_URL")
+OPENAI_API_KEY = load_secret("openai-api-key") or os.getenv("OPENAI_API_KEY")
+YOUTUBE_API_KEY = load_secret("youtube-api-key") or os.getenv("YOUTUBE_API_KEY")
+CLOUD_RUN_URL = load_secret("cloud-run-url") or os.getenv("CLOUD_RUN_URL")
+
 # Google Sheets
-SHEET_ID = os.getenv("SHEET_ID", "1-1Y4O4RAa-XgtAcGB_tEzXE3dta8pYxCgzj5o9FRqM0")
+SHEET_ID = load_secret("google-sheet-id") or os.getenv("SHEET_ID", "1-1Y4O4RAa-XgtAcGB_tEzXE3dta8pYxCgzj5o9FRqM0")
 
 # Google Drive
-DRIVE_FOLDER_ID = os.getenv("DRIVE_FOLDER_ID", "")  # Root folder to scan
+DRIVE_FOLDER_ID = load_secret("drive-folder-id") or os.getenv("DRIVE_FOLDER_ID", "")  # Root folder to scan
 DRIVE_CONFIG_FOLDER_NAME = os.getenv("DRIVE_CONFIG_FOLDER_NAME", "bot_config")  # Folder for index.json
 PROVIDER = os.getenv("PROVIDER", "openai")
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
