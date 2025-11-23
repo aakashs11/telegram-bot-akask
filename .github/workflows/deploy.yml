@@ -6,17 +6,13 @@ on:
       - main
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  PROJECT_ID: telegram-bot-akask
   SERVICE_NAME: telegram-bot
   REGION: asia-south1
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
-    permissions:
-      contents: read
-      id-token: write
     
     steps:
       - name: Checkout code
@@ -25,8 +21,7 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
-          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
       
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
@@ -36,26 +31,34 @@ jobs:
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --source . \
             --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
             --allow-unauthenticated \
             --memory 512Mi \
             --timeout 300 \
             --min-instances 0 \
             --max-instances 10 \
-            --service-account ${{ secrets.CLOUD_RUN_SA }} \
+            --service-account telegram-bot-user@${{ env.PROJECT_ID }}.iam.gserviceaccount.com \
             --quiet
       
       - name: Set Cloud Run URL in Secret Manager
         run: |
           CLOUD_RUN_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
             --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
             --format='value(status.url)')
           
-          echo -n "${CLOUD_RUN_URL}" | gcloud secrets versions add cloud-run-url --data-file=-
+          echo -n "${CLOUD_RUN_URL}" | gcloud secrets versions add cloud-run-url \
+            --project ${{ env.PROJECT_ID }} \
+            --data-file=-
       
       - name: Configure Telegram Webhook
         run: |
-          CLOUD_RUN_URL=$(gcloud secrets versions access latest --secret=cloud-run-url)
-          BOT_TOKEN=$(gcloud secrets versions access latest --secret=telegram-bot-token)
+          CLOUD_RUN_URL=$(gcloud secrets versions access latest \
+            --project ${{ env.PROJECT_ID }} \
+            --secret=cloud-run-url)
+          BOT_TOKEN=$(gcloud secrets versions access latest \
+            --project ${{ env.PROJECT_ID }} \
+            --secret=telegram-bot-token)
           
           curl -X POST "https://api.telegram.org/bot${BOT_TOKEN}/setWebhook" \
             -d "url=${CLOUD_RUN_URL}/webhook"

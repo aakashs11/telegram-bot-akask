@@ -63,3 +63,6 @@ data/index.json
 
 # Test files
 test_*.py
+
+# Secret population script
+populate_secrets.sh
