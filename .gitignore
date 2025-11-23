@@ -1,4 +1,72 @@
-.venv
+# Environment files
 .env
-.env
-deploy_and_set_webhook.sh
+.env.dev
+.env.prod
+*.env
+
+# Google Cloud credentials
+service_account.json
+credentials.json
+new-key.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Data files (now in Google Sheet)
+data/notes.json
+data/index.json
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Pipenv
+Pipfile.lock
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Temporary files
+*.tmp
+*.bak
+# Obsolete files (replaced by Sheet-as-Database)
+data/notes.json
+data/index.json
+
+# Test files
+test_*.py
+
+# Secret population script
+populate_secrets.sh
+
+# Deploy key
+github-deploy-key.txt
+github-deploy-key.json

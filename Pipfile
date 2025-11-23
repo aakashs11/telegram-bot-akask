@@ -1,0 +1,23 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+fastapi = "==0.115.5"
+uvicorn = "==0.32.1"
+python-telegram-bot = "==21.8"
+openai = "==1.99.7"
+python-dotenv = "==1.0.1"
+gspread = "==6.1.4"
+google-auth = "==2.36.0"
+requests = "==2.32.3"
+pydantic = "==2.10.2"
+google-api-python-client = "*"
+aiofiles = "*"
+aiohttp = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.12"
