@@ -105,6 +105,40 @@ telegram-bot-akask/
 └── deploy.sh                    # One-command production deployment
 ```
 
+## 📂 Content Management
+
+The bot serves content (notes, books) from a Google Drive folder. To make files available to the bot, you must sync the Drive structure to the bot's index.
+
+### Syncing Content
+Run the sync script to scan your Drive folder and update the index:
+
+```bash
+# Local
+python scripts/sync_drive.py
+
+# Production (via Cloud Run job or manual script execution)
+# Currently, you can run this locally with PROD credentials or implement a Cloud Scheduler job.
+```
+
+The script:
+1. Scans the `DRIVE_FOLDER_ID` recursively
+2. Categorizes files by Class/Subject/Unit
+3. Updates the `index.json` (or Google Sheet backend) used by the bot
+
+---
+
+## 📜 Scripts Reference
+
+| Script | Description | Usage |
+|--------|-------------|-------|
+| `deploy.sh` | **Production Deployment**. Builds & deploys to Cloud Run. | `./deploy.sh` |
+| `start_devtest.sh` | **Local Development**. Sets up ngrok & runs bot. | `./start_devtest.sh` |
+| `scripts/sync_drive.py` | **Content Sync**. Scans Drive & updates index. | `python scripts/sync_drive.py` |
+| `scripts/inspect_drive.py` | **Debug**. Prints Drive folder structure. | `python scripts/inspect_drive.py` |
+| `scripts/test_moderation.py` | **Safety Test**. Checks spam detection logic. | `python scripts/test_moderation.py "msg"` |
+
+---
+
 ### Key Design Principles
 
 1. **SOLID Architecture** - Tools implement `BaseTool` interface
