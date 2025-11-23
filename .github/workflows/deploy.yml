@@ -14,6 +14,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     
+    permissions:
+      contents: read
+      id-token: write
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -21,7 +25,8 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
       
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
@@ -31,31 +36,26 @@ jobs:
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --source . \
             --region ${{ env.REGION }} \
-            --project ${{ env.PROJECT_ID }} \
             --allow-unauthenticated \
             --memory 512Mi \
             --timeout 300 \
             --min-instances 0 \
             --max-instances 10 \
+            --service-account ${{ secrets.CLOUD_RUN_SA }} \
             --quiet
       
-      - name: Update Cloud Run URL in Secret Manager
+      - name: Set Cloud Run URL in Secret Manager
         run: |
           CLOUD_RUN_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
             --region ${{ env.REGION }} \
             --format='value(status.url)')
           
-          # Create or update cloud-run-url secret
-          if gcloud secrets describe cloud-run-url &>/dev/null; then
-            echo -n "${CLOUD_RUN_URL}" | gcloud secrets versions add cloud-run-url --data-file=-
-          else
-            echo -n "${CLOUD_RUN_URL}" | gcloud secrets create cloud-run-url --data-file=-
-          fi
+          echo -n "${CLOUD_RUN_URL}" | gcloud secrets versions add cloud-run-url --data-file=-
       
       - name: Configure Telegram Webhook
         run: |
           CLOUD_RUN_URL=$(gcloud secrets versions access latest --secret=cloud-run-url)
           BOT_TOKEN=$(gcloud secrets versions access latest --secret=telegram-bot-token)
           
-          curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/setWebhook" \
-            -d "url=${CLOUD_RUN_URL}/webhook" | jq .
+          curl -X POST "https://api.telegram.org/bot${BOT_TOKEN}/setWebhook" \
+            -d "url=${CLOUD_RUN_URL}/webhook"
