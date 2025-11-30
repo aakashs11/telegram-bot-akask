@@ -85,13 +85,16 @@ class NotesTool(BaseTool):
         # Validate we have required info
         if not class_number or not subject:
             return (
-                "MISSING_PARAMS: I need both class and subject to fetch notes. "
-                "Please ask the user: 'Which class (10-12) and subject (AI/CS/IP/IT) are you looking for?'"
+                "🤔 I need a bit more info to find the right notes!\n\n"
+                "Please tell me:\n"
+                "• Which class? (10, 11, or 12)\n"
+                "• Which subject? (AI, CS, IP, or IT)\n\n"
+                "For example: \"Class 10 AI notes\" or \"Class 12 CS sample papers\""
             )
         
         # Check service availability
         if not self.note_service:
-            return "ERROR: Note service not available. Please contact admin."
+            return "⚠️ Notes service is temporarily unavailable. Please try again later!"
         
         # 1. Try to get folder link (adaptive: with or without topic)
         folder_url = await self.note_service.get_folder_link(
@@ -102,12 +105,12 @@ class NotesTool(BaseTool):
         )
         
         if folder_url:
-            # Success! Return folder link
-            topic_text = f" ({topic})" if topic else ""
+            # Success! Return folder link with friendly message
+            topic_text = f" - {topic}" if topic else ""
             return (
-                f"📚 **{resource_type} for Class {class_number} {subject}{topic_text}:**\n\n"
-                f"🔗 [Open Folder in Google Drive]({folder_url})\n\n"
-                f"💡 Tip: You can browse all files in the folder and download what you need!"
+                f"📚 *Class {class_number} {subject} {resource_type}{topic_text}*\n\n"
+                f"📂 [Open in Google Drive]({folder_url})\n\n"
+                f"_Browse and download what you need!_"
             )
         
         # 2. Fallback: List individual files (e.g., if topic-specific folder doesn't exist)
@@ -119,17 +122,24 @@ class NotesTool(BaseTool):
         )
         
         if not notes:
-            suggestion = f" for topic '{topic}'" if topic else ""
-            return f"📚 No {resource_type} found for Class {class_number} {subject}{suggestion}. Try a different search or contact admin."
+            # Helpful empty state with suggestions
+            topic_hint = f" on \"{topic}\"" if topic else ""
+            return (
+                f"🔍 Couldn't find {resource_type} for Class {class_number} {subject}{topic_hint}.\n\n"
+                f"Try these instead:\n"
+                f"• Browse all: \"Class {class_number} {subject} notes\"\n"
+                f"• Different resource: \"Class {class_number} {subject} sample papers\"\n\n"
+                f"Still stuck? Just ask! 💬"
+            )
         
         # Format file list response
         topic_text = f" - {topic}" if topic else ""
-        response = f"📚 **{resource_type} for Class {class_number} {subject}{topic_text}:**\n\n"
+        response = f"📚 *Class {class_number} {subject} {resource_type}{topic_text}:*\n\n"
         
-        for note in notes[:5]:  # Limit to 5 files when listing
+        for note in notes[:8]:  # Limit to 8 files when listing
             response += f"📄 [{note.title}]({note.url})\n"
         
-        if len(notes) > 5:
-            response += f"\n📦 ...and {len(notes) - 5} more files available!"
+        if len(notes) > 8:
+            response += f"\n_...and {len(notes) - 8} more files available!_"
         
         return response

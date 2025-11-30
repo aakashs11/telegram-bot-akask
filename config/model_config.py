@@ -24,7 +24,7 @@ CONFIGS = {
     "assistant": ModelConfig(
         name=os.getenv("AGENT_MODEL", "gpt-4o"),
         temperature=float(os.getenv("AGENT_TEMPERATURE", "0.3")),
-        max_tokens=int(os.getenv("AGENT_MAX_TOKENS", "500"))
+        max_tokens=int(os.getenv("AGENT_MAX_TOKENS", "800"))
     ),
     "moderation": ModelConfig(
         name=os.getenv("MODERATION_MODEL", "gpt-4o-mini"),
