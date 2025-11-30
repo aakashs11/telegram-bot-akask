@@ -8,6 +8,7 @@ from telegram_bot.services.note_service import NoteService
 from telegram_bot.tools import NotesTool, VideosTool, ProfileTool, ListResourcesTool
 from telegram_bot.commands.notes_command import NotesCommand
 from telegram_bot.commands.sync_command import SyncCommand
+from telegram_bot.commands.welcome_command import WelcomeCommand
 import os
 
 # Configure logging
@@ -50,12 +51,16 @@ application.bot_data["moderation_service"] = moderation_service
 drive_sync_service = SyncService(drive_service)
 sync_command = SyncCommand(drive_sync_service)
 
+# Initialize Welcome Command
+welcome_command = WelcomeCommand()
+
 # Add command and message handlers
 application.add_handler(CommandHandler("start", start_command))
 application.add_handler(CommandHandler("notes", notes_command.list_notes))
 application.add_handler(CommandHandler("addnote", notes_command.add_note))
 application.add_handler(CommandHandler("sync", sync_command.sync_drive))
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_command.on_new_member))
 
 # Background Sync Job
 async def run_sync_job(context):

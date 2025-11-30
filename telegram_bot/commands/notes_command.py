@@ -1,8 +1,16 @@
+"""
+NotesCommand: Handles notes-related commands in the Telegram bot.
+
+Provides functionality for listing notes (with group/private chat handling)
+and adding new notes (admin-only in groups).
+"""
+
 import logging
 from telegram import Update
 from telegram.ext import ContextTypes
 from telegram.constants import ChatMemberStatus
 from telegram_bot.services.note_service import NoteService
+from utils.common import schedule_message_deletion
 
 logger = logging.getLogger(__name__)
 
@@ -50,22 +58,8 @@ class NotesCommand:
                 reply_markup=reply_markup
             )
             
-            # Schedule message deletion after 30 seconds using background task
-            import asyncio
-            async def auto_delete():
-                await asyncio.sleep(30)
-                try:
-                    await context.bot.delete_message(
-                        chat_id=button_msg.chat_id,
-                        message_id=button_msg.message_id
-                    )
-                    logger.info(f"Auto-deleted button message {button_msg.message_id}")
-                except Exception as e:
-                    logger.warning(f"Could not auto-delete button: {e}")
-            
-            # Start background task (fire and forget)
-            import asyncio
-            asyncio.ensure_future(auto_delete())
+            # Schedule message deletion after 30 seconds
+            schedule_message_deletion(context.bot, button_msg.chat_id, button_msg.message_id)
             
             return
         
