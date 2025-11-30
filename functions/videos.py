@@ -27,7 +27,7 @@ async def get_videos(query):
         "part": "snippet",
         "channelId": "UCsHJyKNfjVMr4EoXPw-8Jxw",
         "type": "video",
-        "maxResults": 5
+        "maxResults": 8
     }
     
     try:

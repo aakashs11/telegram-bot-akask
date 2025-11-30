@@ -1,45 +1,47 @@
+"""
+Telegram bot message handlers.
+Handles /start command and user messages with unified message sending.
+"""
+
 import logging
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from utils.intent import classify_intent
 from utils.gspread_logging import log_interaction
+from telegram_bot.services.message_service import send_response, send_to_user, send_plain
 
 logger = logging.getLogger(__name__)
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle the /start command with optional deep link parameters."""
-    
     # Check if user came from a deep link (e.g., /notes button in group)
     args = context.args
     
     if args and args[0] == 'notes':
         # User clicked the button from a group to get notes
         welcome_message = (
-            "👋 Welcome to ASK.ai!\n\n"
-            "I'm your AI study assistant. Just chat with me naturally!\n\n"
-            "📚 **To get notes**, simply tell me what you need:\n"
-            "   • \"I need Class 12 CS notes\"\n"
-            "   • \"Show me Class 10 AI sample papers\"\n"
-            "   • \"Find Python programming books\"\n\n"
-            "🎥 **For videos**, just ask:\n"
-            "   • \"Show me data structures videos\"\n"
-            "   • \"Find SQL tutorial videos\"\n\n"
-            "💬 No commands needed - just chat!\n\n"
-            "What study materials are you looking for?"
+            "👋 Hey! I'm ASK.ai - your study buddy!\n\n"
+            "I can help you find:\n"
+            "📚 Notes, books & sample papers\n"
+            "🎬 Video lessons from Aakash Sir\n\n"
+            "Just tell me like you'd tell a friend:\n"
+            "• \"I need Class 12 CS notes\"\n"
+            "• \"Show me Python videos\"\n"
+            "• \"Help me with NLP revision\"\n\n"
+            "What are you studying today? 📖"
         )
     else:
         # Standard welcome for /start in private chat
         welcome_message = (
-            "👋 Welcome to ASK.ai!\n\n"
+            "👋 Hey! I'm ASK.ai - your study buddy!\n\n"
             "I can help you find:\n"
-            "📚 Notes, books, and study materials\n"
-            "🎥 Educational videos\n\n"
+            "📚 Notes, books & sample papers\n"
+            "🎬 Video lessons\n\n"
             "Just tell me what you need!"
         )
     
-    await update.message.reply_text(welcome_message)
+    await send_response(update, welcome_message)
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -68,11 +70,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             # Remove mention from message for cleaner processing
             user_message = user_message.replace(f"@{bot_username}", "").strip()
             if not user_message:
-                await update.message.reply_text("Hi! How can I help you?")
+                await send_plain(update, "Hi! How can I help you?")
                 return
 
         # --- SPAM DETECTION & LOGGING (After filtering non-relevant messages) ---
-        # Check relevant messages for spam/harmful content
         mod_result = await moderation_service.check_message(user_message)
         
         # Log to Google Sheets (if available)
@@ -81,31 +82,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
         if mod_result.is_flagged:
             action = "Deleted"
-            # Delete spam message
             try:
                 await update.message.delete()
                 
-                # Send PRIVATE warning to user
+                # Send PRIVATE warning to user using unified service
                 warning_text = (
-                    "⚠️ **Safety Warning**\n\n"
+                    "⚠️ *Safety Warning*\n\n"
                     "Your message was deleted because it violated our safety guidelines.\n"
                     "Please adhere to community standards."
                 )
-                
-                try:
-                    await context.bot.send_message(
-                        chat_id=user_id,
-                        text=warning_text,
-                        parse_mode="Markdown"
-                    )
-                except Exception as e:
-                    logger.warning(f"Could not send private warning to {user_id}: {e}")
+                await send_to_user(context, user_id, warning_text)
                     
             except Exception as e:
                 logger.warning(f"Could not delete spam message: {e}")
                 action = "Failed Delete"
 
-        # Log the event
+        # Log the moderation event
         if sh:
             from utils.gspread_logging import log_moderation_event
             log_moderation_event(
@@ -123,8 +115,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             return
 
         # --- PRIVATE CHAT LOGIC ---
-        # (Proceeds to agent processing below)
-        
         # Get user profile (persistent!)
         user_profile = await user_service.get_user_profile(
             user_id=user_id,
@@ -139,11 +129,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             user_service=user_service
         )
         
-        # Send response
-        await update.message.reply_text(
-            response, 
-            disable_web_page_preview=True
-        )
+        # Send response (handles splitting automatically)
+        await send_response(update, response)
         
         # Log interaction if Google Sheets is available
         sh = context.application.bot_data.get("sh")
@@ -154,8 +141,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     user_id=user_id,
                     user_message=user_message,
                     bot_response=response,
-                    screener_output="",  # Removed old screener
-                    intent_output="agent",  # Mark as agent-powered
+                    screener_output="",
+                    intent_output="agent",
                     entities_output=""
                 )
             except Exception as log_error:
@@ -163,4 +150,4 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 
     except Exception as e:
         logger.error(f"Error handling message: {e}", exc_info=True)
-        await update.message.reply_text("Sorry, I encountered an error. Please try again.")
+        await send_plain(update, "Sorry, I encountered an error. Please try again.")
