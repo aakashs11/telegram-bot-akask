@@ -7,7 +7,7 @@ import json
 import logging
 from typing import Dict, List, Optional, Any
 
-from config.model_config import ModelConfig, get_model_config
+from config.model_config import ModelConfig, ContextConfig, get_model_config, DEFAULT_CONTEXT_CONFIG
 from utils.openai_client import get_client
 from telegram_bot.tools import BaseTool
 
@@ -23,14 +23,20 @@ class AgentService:
     - Dependency Inversion: Depends on BaseTool abstraction
     """
     
-    def __init__(self, config: Optional[ModelConfig] = None):
+    def __init__(
+        self,
+        config: Optional[ModelConfig] = None,
+        context_config: Optional[ContextConfig] = None
+    ):
         """
-        Initialize agent with model configuration.
+        Initialize agent with model and context configuration.
         
         Args:
             config: Model configuration (defaults to 'assistant' config)
+            context_config: Context configuration for history limits per chat type
         """
         self.config = config or get_model_config("assistant")
+        self.context_config = context_config or DEFAULT_CONTEXT_CONFIG
         self.client = get_client()
         self.tools: Dict[str, BaseTool] = {}
         self.conversation_history: Dict[int, List[Dict]] = {}  # user_id -> messages
@@ -57,7 +63,8 @@ class AgentService:
         user_message: str,
         user_id: int,
         user_profile: Optional[Dict] = None,
-        user_service: Optional[Any] = None
+        user_service: Optional[Any] = None,
+        chat_type: str = "private"
     ) -> str:
         """
         Process user message using agent with tools.
@@ -67,6 +74,7 @@ class AgentService:
             user_id: Telegram user ID
             user_profile: Optional user profile dict
             user_service: Optional UserService instance for tools
+            chat_type: Type of chat ('private', 'group', 'supergroup')
             
         Returns:
             Agent's response
@@ -89,8 +97,15 @@ class AgentService:
                 {"role": "system", "content": system_prompt}
             ]
             
-            # Add conversation history (last 10 messages)
-            messages.extend(history[-10:])
+            # Get history limit based on chat type (Open/Closed principle - configurable)
+            history_limit = (
+                self.context_config.group_history_limit
+                if chat_type in ['group', 'supergroup']
+                else self.context_config.private_history_limit
+            )
+            
+            # Add conversation history (limited by chat type)
+            messages.extend(history[-history_limit:])
             
             # Add current user message
             messages.append({"role": "user", "content": user_message})

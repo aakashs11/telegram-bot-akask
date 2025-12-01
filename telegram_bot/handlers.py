@@ -121,12 +121,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             username=update.effective_user.username or ""
         )
         
-        # Process message with agent
+        # Process message with agent (pass chat_type for context management)
         response = await agent.process(
             user_message=user_message,
             user_id=user_id,
             user_profile=user_profile,
-            user_service=user_service
+            user_service=user_service,
+            chat_type=chat_type
         )
         
         # Send response (handles splitting automatically)
