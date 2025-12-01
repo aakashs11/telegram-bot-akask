@@ -50,7 +50,7 @@ class WelcomeCommand:
             # Build the welcome message
             welcome_text = (
                 f"👋 Welcome, {new_member.first_name}!\n\n"
-                "I'm **ASK.ai**, your AI study buddy! Here's what I can help you with:\n\n"
+                "I'm **ASK AI**, your AI study buddy! Here's what I can help you with:\n\n"
                 "📚 **Notes & Study Materials** - Class notes, books, sample papers\n"
                 "🎥 **Video Tutorials** - Educational videos on any topic\n"
                 "💬 **Chat with me** - Just ask naturally, no commands needed!\n\n"
@@ -61,7 +61,7 @@ class WelcomeCommand:
             deep_link = f"https://t.me/{bot_username}?start=notes"
             keyboard = [[
                 InlineKeyboardButton(
-                    "💬 Start Chat with ASK.ai",
+                    "💬 Start Chat with ASK AI",
                     url=deep_link
                 )
             ]]
