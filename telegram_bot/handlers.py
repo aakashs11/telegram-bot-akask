@@ -21,7 +21,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if args and args[0] == 'notes':
         # User clicked the button from a group to get notes
         welcome_message = (
-            "👋 Hey! I'm ASK.ai - your study buddy!\n\n"
+            "👋 Hey! I'm ASK AI - your study buddy!\n\n"
             "I can help you find:\n"
             "📚 Notes, books & sample papers\n"
             "🎬 Video lessons from Aakash Sir\n\n"
@@ -34,7 +34,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     else:
         # Standard welcome for /start in private chat
         welcome_message = (
-            "👋 Hey! I'm ASK.ai - your study buddy!\n\n"
+            "👋 Hey! I'm ASK AI - your study buddy!\n\n"
             "I can help you find:\n"
             "📚 Notes, books & sample papers\n"
             "🎬 Video lessons\n\n"

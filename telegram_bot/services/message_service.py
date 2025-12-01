@@ -112,3 +112,4 @@ async def send_plain(update: Update, text: str) -> Optional[Message]:
     except TelegramError as e:
         logger.error(f"Failed to send plain message: {e}")
         return None
+
