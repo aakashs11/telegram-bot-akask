@@ -19,6 +19,22 @@ class ModelConfig:
     presence_penalty: float = 0.0
 
 
+@dataclass
+class ContextConfig:
+    """
+    Configuration for conversation context per chat type.
+    
+    Follows Single Responsibility: only manages context window settings.
+    Allows different history limits for private vs group chats.
+    """
+    private_history_limit: int = 10  # 5 exchanges for private chats
+    group_history_limit: int = 2     # 1 exchange for group chats
+
+
+# Default context configuration
+DEFAULT_CONTEXT_CONFIG = ContextConfig()
+
+
 # Predefined configurations for different use cases
 CONFIGS = {
     "assistant": ModelConfig(
