@@ -69,6 +69,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             
             # Remove mention from message for cleaner processing
             user_message = user_message.replace(f"@{bot_username}", "").strip()
+            
+            # Quote-reply: prepend replied message as context (let AI handle it)
+            if update.message.reply_to_message and update.message.reply_to_message.text:
+                replied_text = update.message.reply_to_message.text
+                user_message = f"{replied_text}\n\n{user_message}".strip()
+            
             if not user_message:
                 await send_plain(update, "Hi! How can I help you?")
                 return
