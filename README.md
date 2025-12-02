@@ -361,4 +361,4 @@ MIT License - See LICENSE file for details
 
 ---
 
-**Made with ❤️ for students**
+**Made with ☕ for students**
