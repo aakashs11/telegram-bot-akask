@@ -190,21 +190,32 @@ class WarningService:
         # Generate warning message
         if should_ban:
             message = (
-                "🚫 *You have been banned*\n\n"
-                "You have exceeded the warning limit and have been "
-                "removed from the group for repeated violations."
+                "🚫 *BANNED*\n\n"
+                "You have been *permanently removed* from the group.\n\n"
+                "Reason: Repeated violations of community guidelines "
+                "(spam, abuse, or inappropriate content).\n\n"
+                "This action is logged and cannot be appealed."
             )
         elif new_count == 1:
             message = (
-                "⚠️ *Warning 1/2*\n\n"
-                "Your message was removed for violating group guidelines.\n"
-                "Please follow community standards."
+                "⚠️ *WARNING 1/2*\n\n"
+                "Your message was *deleted* for containing inappropriate content "
+                "(spam, abuse, or policy violation).\n\n"
+                "📊 *You are now being tracked:*\n"
+                "• This warning is logged permanently\n"
+                "• Your user ID is recorded\n"
+                "• 1 more violation = *automatic ban*\n\n"
+                "Please follow community guidelines."
             )
         else:
             message = (
-                "⚠️ *Final Warning (2/2)*\n\n"
-                "Your message was removed again.\n"
-                "One more violation will result in a *ban*."
+                "🛑 *FINAL WARNING 2/2*\n\n"
+                "Your message was *deleted again* for violating group rules.\n\n"
+                "⚠️ *This is your last chance:*\n"
+                "• Your violations are logged\n"
+                "• Next violation = *PERMANENT BAN*\n"
+                "• You will be removed from the group\n\n"
+                "Consider this your final warning."
             )
         
         logger.info(f"Warning added: user={user_id}, chat={chat_id}, count={new_count}, ban={should_ban}")

@@ -3,7 +3,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from config.settings import TELEGRAM_BOT_TOKEN
 from telegram_bot.handlers import start_command, handle_message
 from telegram_bot.infrastructure.drive_note_repository import DriveNoteRepository
-from telegram_bot.services import AgentService, UserService, ModerationService, DriveService, SyncService
+from telegram_bot.services import AgentService, UserService, DriveService, SyncService
 from telegram_bot.services.group import GroupOrchestrator
 from telegram_bot.services.moderation import ContentModerator, WarningService
 from telegram_bot.services.note_service import NoteService
@@ -31,7 +31,6 @@ note_service = NoteService(note_repository)
 notes_command = NotesCommand(note_service)
 user_service = UserService()
 agent = AgentService()
-moderation_service = ModerationService()
 
 # Register Tools
 agent.register_tool(NotesTool(note_service=note_service))
@@ -57,7 +56,7 @@ application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 # Store services in bot_data for access in handlers
 application.bot_data["agent"] = agent
 application.bot_data["user_service"] = user_service
-application.bot_data["moderation_service"] = moderation_service
+application.bot_data["content_moderator"] = content_moderator  # Unified moderation for all chats
 application.bot_data["group_orchestrator"] = group_orchestrator
 
 # Initialize Sync Service

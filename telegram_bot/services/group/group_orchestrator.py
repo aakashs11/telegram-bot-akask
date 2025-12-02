@@ -66,31 +66,45 @@ class GroupOrchestrator:
         context: ContextTypes.DEFAULT_TYPE,
         user_message: str,
         user_id: int,
-        user_profile: Optional[dict] = None
+        user_profile: Optional[dict] = None,
+        bot_username: str = ""
     ) -> None:
         """
-        Handle a group message (after bot mention check).
+        Handle ALL group messages.
+        
+        Flow:
+        1. MODERATION: Check every message (delete abuse/spam)
+        2. RESPONSE: Only if @mentioned
         
         Args:
             update: Telegram update object
             context: Bot context
-            user_message: Message text (with @mention removed)
+            user_message: Original message text
             user_id: Telegram user ID
             user_profile: User's profile data
+            bot_username: Bot's username for mention detection
         """
         chat_id = update.effective_chat.id
         username = update.effective_user.username or ""
         
-        # === STEP 1: MODERATION CHECK ===
+        # === STEP 1: MODERATION (runs on ALL messages) ===
         mod_result = await self.moderator.check(user_message)
         
         if mod_result.is_flagged:
             await self._handle_violation(
                 update, context, user_id, chat_id, username
             )
-            return
+            return  # Stop processing
         
-        # === STEP 2: EXTRACT CONTEXT ===
+        # === STEP 2: CHECK IF BOT IS MENTIONED ===
+        if bot_username and f"@{bot_username}" not in user_message:
+            return  # Not mentioned, moderation done, exit silently
+        
+        # Remove mention for cleaner processing
+        if bot_username:
+            user_message = user_message.replace(f"@{bot_username}", "").strip()
+        
+        # === STEP 4: EXTRACT CONTEXT ===
         # Get context from group name
         group_title = update.effective_chat.title or ""
         group_context = self.helper.extract_from_group_name(group_title)
@@ -105,7 +119,7 @@ class GroupOrchestrator:
             group_context=group_context
         )
         
-        # === STEP 3: CHECK IF WE CAN RESPOND ===
+        # === STEP 5: CHECK IF WE CAN RESPOND ===
         if not enriched_message:
             # Empty message after processing
             response = await self._send_auto_delete(
@@ -131,7 +145,7 @@ class GroupOrchestrator:
             )
             return
         
-        # === STEP 4: PROCESS WITH AGENT ===
+        # === STEP 6: PROCESS WITH AGENT ===
         if self.agent:
             try:
                 response = await self.agent.process(

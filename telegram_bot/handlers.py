@@ -50,9 +50,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     Handle regular text messages.
     
     Routes to:
-    - GroupOrchestrator for group/supergroup chats
+    - GroupOrchestrator for group/supergroup chats (moderation for ALL messages)
     - AgentService for private chats
     """
+    # Guard: Skip if no message (edited messages, channel posts, etc.)
+    if not update.message or not update.message.text:
+        return
+    
     try:
         user_message = update.message.text
         user_id = update.effective_user.id
@@ -85,27 +89,18 @@ async def _handle_group_message(
     user_id: int
 ) -> None:
     """
-    Handle group messages via GroupOrchestrator.
+    Route ALL group messages to GroupOrchestrator.
     
-    Only responds if bot is @mentioned.
+    Handler is a thin routing layer - all logic is in orchestrator.
     """
-    bot_username = context.bot.username
-    
-    # Only respond if mentioned
-    if f"@{bot_username}" not in user_message:
-        return
-    
-    # Remove mention from message
-    user_message = user_message.replace(f"@{bot_username}", "").strip()
-    
-    # Get GroupOrchestrator
     group_orchestrator = context.application.bot_data.get("group_orchestrator")
-    user_service = context.application.bot_data.get("user_service")
     
     if not group_orchestrator:
         logger.error("GroupOrchestrator not initialized in bot_data")
-        await send_plain(update, "Hi! How can I help you?")
         return
+    
+    user_service = context.application.bot_data.get("user_service")
+    bot_username = context.bot.username
     
     # Get user profile
     user_profile = await user_service.get_user_profile(
@@ -113,13 +108,14 @@ async def _handle_group_message(
         username=update.effective_user.username or ""
     ) if user_service else None
     
-    # Delegate to orchestrator (handles moderation, deletion, warnings, response)
+    # Delegate EVERYTHING to orchestrator (moderation + response)
     await group_orchestrator.handle_message(
         update=update,
         context=context,
         user_message=user_message,
         user_id=user_id,
-        user_profile=user_profile
+        user_profile=user_profile,
+        bot_username=bot_username
     )
 
 
@@ -132,19 +128,19 @@ async def _handle_private_message(
     """
     Handle private chat messages via AgentService.
     
-    Includes moderation check and logging.
+    Uses ContentModerator (same as groups) for unified moderation.
     """
     agent = context.application.bot_data.get("agent")
     user_service = context.application.bot_data.get("user_service")
-    moderation_service = context.application.bot_data.get("moderation_service")
+    content_moderator = context.application.bot_data.get("content_moderator")
     
     if not agent or not user_service:
         logger.error("Services not initialized in bot_data")
         return
 
-    # Moderation check (if service available)
-    if moderation_service:
-        mod_result = await moderation_service.check_message(user_message)
+    # Moderation check (unified ContentModerator)
+    if content_moderator:
+        mod_result = await content_moderator.check(user_message)
         
         if mod_result.is_flagged:
             await send_plain(
