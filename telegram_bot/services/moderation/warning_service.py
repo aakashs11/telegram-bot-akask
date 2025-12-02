@@ -230,12 +230,14 @@ class WarningService:
         Returns:
             True if ban was successful
         """
+        logger.info(f"Attempting to ban user {user_id} from chat {chat_id}")
         try:
-            await bot.ban_chat_member(chat_id=chat_id, user_id=user_id)
-            logger.info(f"Banned user {user_id} from chat {chat_id}")
+            result = await bot.ban_chat_member(chat_id=chat_id, user_id=user_id)
+            logger.info(f"✅ Successfully banned user {user_id} from chat {chat_id}. Result: {result}")
             return True
         except Exception as e:
-            logger.error(f"Failed to ban user {user_id}: {e}")
+            logger.error(f"❌ FAILED to ban user {user_id} from chat {chat_id}: {type(e).__name__}: {e}")
+            logger.error("Make sure the bot has 'Ban users' admin permission in the group!")
             return False
     
     async def is_banned(self, user_id: int, chat_id: int) -> bool:

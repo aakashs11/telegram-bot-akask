@@ -203,11 +203,14 @@ class GroupOrchestrator:
         
         # Execute ban if needed
         if warning_result.should_ban:
-            await self.warning_service.execute_ban(
+            logger.info(f"🚫 Ban triggered for user {user_id} in chat {chat_id}")
+            ban_success = await self.warning_service.execute_ban(
                 bot=context.bot,
                 user_id=user_id,
                 chat_id=chat_id
             )
+            if not ban_success:
+                logger.error(f"Ban failed for user {user_id} - check bot admin permissions!")
     
     async def _send_auto_delete(
         self,
