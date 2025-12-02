@@ -94,8 +94,14 @@ class GroupOrchestrator:
         logger.debug(f"📝 Message: '{user_message[:80]}...'")
         
         # === STEP 1: MODERATION (runs on ALL messages) ===
+        # Strip bot mention before moderation to avoid false positives
+        message_for_moderation = user_message
+        if bot_username:
+            message_for_moderation = user_message.replace(f"@{bot_username}", "").strip()
+        
         logger.info(f"🔍 STEP 1: Running moderation check...")
-        mod_result = await self.moderator.check(user_message)
+        logger.debug(f"   Checking: '{message_for_moderation[:60]}...'")
+        mod_result = await self.moderator.check(message_for_moderation)
         
         if mod_result.is_flagged:
             logger.warning(f"🚨 MESSAGE FLAGGED! Category: {mod_result.category}")
