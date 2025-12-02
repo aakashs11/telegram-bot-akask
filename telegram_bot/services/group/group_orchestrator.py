@@ -20,6 +20,7 @@ from telegram_bot.services.moderation import ContentModerator, WarningService
 from telegram_bot.services.group.group_helper import GroupHelper
 from telegram_bot.services.message_service import send_to_user
 from utils.common import schedule_message_deletion
+from config.settings import ADMIN_USER_IDS
 
 logger = logging.getLogger(__name__)
 
@@ -93,15 +94,25 @@ class GroupOrchestrator:
         logger.info(f"👤 User: {user_id} (@{username})")
         logger.debug(f"📝 Message: '{user_message[:80]}...'")
         
-        # === STEP 1: MODERATION (runs on ALL messages) ===
-        # Strip bot mention before moderation to avoid false positives
-        message_for_moderation = user_message
-        if bot_username:
-            message_for_moderation = user_message.replace(f"@{bot_username}", "").strip()
+        # === CHECK ADMIN WHITELIST ===
+        is_admin = user_id in ADMIN_USER_IDS
+        if is_admin:
+            logger.info(f"👑 User {user_id} is ADMIN - skipping moderation")
         
-        logger.info(f"🔍 STEP 1: Running moderation check...")
-        logger.debug(f"   Checking: '{message_for_moderation[:60]}...'")
-        mod_result = await self.moderator.check(message_for_moderation)
+        # === STEP 1: MODERATION (runs on ALL messages, except admins) ===
+        if not is_admin:
+            # Strip bot mention before moderation to avoid false positives
+            message_for_moderation = user_message
+            if bot_username:
+                message_for_moderation = user_message.replace(f"@{bot_username}", "").strip()
+            
+            logger.info(f"🔍 STEP 1: Running moderation check...")
+            logger.debug(f"   Checking: '{message_for_moderation[:60]}...'")
+            mod_result = await self.moderator.check(message_for_moderation)
+        else:
+            # Admins bypass moderation
+            from telegram_bot.services.moderation.content_moderator import ModerationResult
+            mod_result = ModerationResult(is_flagged=False)
         
         if mod_result.is_flagged:
             logger.warning(f"🚨 MESSAGE FLAGGED! Category: {mod_result.category}")

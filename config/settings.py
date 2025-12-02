@@ -43,6 +43,12 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
 AGENT_SQLITE_PATH = os.getenv("AGENT_SQLITE_PATH", "agent_memory.db")
 CREDENTIALS_FILE = "service_account.json"
 
+# Admin whitelist - these user IDs are exempt from moderation
+# Add your Telegram user ID here
+ADMIN_USER_IDS = [
+    897280786,  # Aakash - primary admin
+]
+
 if not TELEGRAM_BOT_TOKEN:
     raise ValueError("TELEGRAM_BOT_TOKEN is not set in the environment variables.")
 
