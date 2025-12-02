@@ -72,7 +72,10 @@ class ContentModerator:
         Returns:
             ModerationResult with is_flagged=True if inappropriate
         """
+        logger.debug(f"🔍 Moderation check: '{text[:50]}...'")
+        
         if not text or not text.strip():
+            logger.debug(f"⏭️ Empty text, skipping moderation")
             return ModerationResult(is_flagged=False)
         
         try:
@@ -80,6 +83,7 @@ class ContentModerator:
             prompt_template = PromptFactory.get_content_moderation_prompt()
             prompt = prompt_template.format(text=text)
             
+            logger.debug(f"📤 Sending to {self.model} for moderation...")
             response = await asyncio.to_thread(
                 self.client.chat.completions.create,
                 model=self.model,
@@ -94,7 +98,9 @@ class ContentModerator:
             is_flagged = raw_response.startswith("YES")
             
             if is_flagged:
-                logger.info(f"Message flagged: '{text[:50]}...' -> {raw_response}")
+                logger.warning(f"🚨 FLAGGED: '{text[:80]}' -> LLM: {raw_response}")
+            else:
+                logger.debug(f"✅ PASSED: '{text[:50]}...' -> LLM: {raw_response}")
             
             return ModerationResult(
                 is_flagged=is_flagged,
@@ -103,7 +109,7 @@ class ContentModerator:
             )
             
         except Exception as e:
-            logger.error(f"Content moderation error: {e}")
+            logger.error(f"❌ Content moderation error: {type(e).__name__}: {e}")
             # Fail open - allow message but log error
             return ModerationResult(
                 is_flagged=False,

@@ -55,6 +55,7 @@ class GroupHelper:
         result = {"class": None, "subject": None}
         
         if not group_title:
+            logger.debug(f"📋 extract_from_group_name: Empty title")
             return result
         
         title_upper = group_title.upper()
@@ -65,15 +66,19 @@ class GroupHelper:
             class_num = int(class_match.group(1))
             if class_num in self.CLASSES:
                 result["class"] = class_num
+                logger.debug(f"   Found class: {class_num}")
         
         # Extract subject
         for subject in self.SUBJECTS:
             if subject in title_upper:
                 result["subject"] = subject
+                logger.debug(f"   Found subject: {subject}")
                 break
         
         if result["class"] or result["subject"]:
-            logger.info(f"Extracted from group name '{group_title}': {result}")
+            logger.info(f"📋 Group context extracted: '{group_title}' -> {result}")
+        else:
+            logger.debug(f"📋 No class/subject found in: '{group_title}'")
         
         return result
     
@@ -89,8 +94,9 @@ class GroupHelper:
         """
         if message.reply_to_message and message.reply_to_message.text:
             replied_text = message.reply_to_message.text
-            logger.debug(f"Quote-reply extracted: '{replied_text[:50]}...'")
+            logger.info(f"💬 Quote-reply found: '{replied_text[:60]}...' ({len(replied_text)} chars)")
             return replied_text
+        logger.debug(f"💬 No quote-reply in message")
         return None
     
     def build_context_message(
@@ -152,13 +158,18 @@ class GroupHelper:
         Returns:
             True if we can respond without asking for more info
         """
+        logger.debug(f"📊 Checking sufficient context for: '{user_message[:50]}...'")
+        
         # Check if message is a resource request
         resource_keywords = ["notes", "paper", "book", "syllabus", "material", "pdf"]
         is_resource_request = any(kw in user_message.lower() for kw in resource_keywords)
         
         if not is_resource_request:
             # Non-resource requests don't need class/subject
+            logger.debug(f"   Not a resource request, context sufficient")
             return True
+        
+        logger.debug(f"   Resource request detected, checking for class/subject")
         
         # For resource requests, check if we have context
         has_class = (
@@ -170,5 +181,9 @@ class GroupHelper:
             (user_profile and user_profile.get("preferred_subject"))
         )
         
-        return has_class or has_subject
+        logger.debug(f"   has_class={has_class}, has_subject={has_subject}")
+        result = has_class or has_subject
+        logger.info(f"📊 Sufficient context: {result} (class={has_class}, subject={has_subject})")
+        
+        return result
 

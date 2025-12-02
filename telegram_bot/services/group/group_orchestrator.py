@@ -86,31 +86,48 @@ class GroupOrchestrator:
         """
         chat_id = update.effective_chat.id
         username = update.effective_user.username or ""
+        group_title = update.effective_chat.title or ""
+        
+        logger.info(f"━━━ GROUP MESSAGE ━━━")
+        logger.info(f"📍 Group: '{group_title}' (chat_id={chat_id})")
+        logger.info(f"👤 User: {user_id} (@{username})")
+        logger.debug(f"📝 Message: '{user_message[:80]}...'")
         
         # === STEP 1: MODERATION (runs on ALL messages) ===
+        logger.info(f"🔍 STEP 1: Running moderation check...")
         mod_result = await self.moderator.check(user_message)
         
         if mod_result.is_flagged:
+            logger.warning(f"🚨 MESSAGE FLAGGED! Category: {mod_result.category}")
+            logger.warning(f"   Raw response: {mod_result.raw_response}")
             await self._handle_violation(
                 update, context, user_id, chat_id, username
             )
             return  # Stop processing
         
+        logger.info(f"✅ STEP 1: Moderation passed")
+        
         # === STEP 2: CHECK IF BOT IS MENTIONED ===
-        if bot_username and f"@{bot_username}" not in user_message:
+        is_mentioned = bot_username and f"@{bot_username}" in user_message
+        logger.info(f"👀 STEP 2: Bot mentioned? {is_mentioned}")
+        
+        if not is_mentioned:
+            logger.debug(f"⏭️ Not mentioned, exiting (moderation done)")
             return  # Not mentioned, moderation done, exit silently
         
         # Remove mention for cleaner processing
         if bot_username:
             user_message = user_message.replace(f"@{bot_username}", "").strip()
+            logger.debug(f"📝 Message after removing mention: '{user_message}'")
         
-        # === STEP 4: EXTRACT CONTEXT ===
-        # Get context from group name
-        group_title = update.effective_chat.title or ""
+        # === STEP 3: EXTRACT CONTEXT ===
+        logger.info(f"📋 STEP 3: Extracting context...")
         group_context = self.helper.extract_from_group_name(group_title)
+        logger.debug(f"   Group context: {group_context}")
         
         # Get context from quote-reply
         replied_text = self.helper.extract_quote_reply(update.message)
+        logger.debug(f"   Quote-reply: {replied_text[:50] if replied_text else 'None'}")
         
         # Build enriched message
         enriched_message = self.helper.build_context_message(
@@ -118,10 +135,11 @@ class GroupOrchestrator:
             replied_text=replied_text,
             group_context=group_context
         )
+        logger.debug(f"   Enriched message: '{enriched_message[:100]}...'")
         
-        # === STEP 5: CHECK IF WE CAN RESPOND ===
+        # === STEP 4: CHECK IF WE CAN RESPOND ===
         if not enriched_message:
-            # Empty message after processing
+            logger.info(f"❓ STEP 4: Empty message, sending help prompt")
             response = await self._send_auto_delete(
                 update, context,
                 "Hi! How can I help you? 💬"
@@ -134,9 +152,10 @@ class GroupOrchestrator:
             group_context=group_context,
             user_profile=user_profile
         )
+        logger.info(f"📊 STEP 4: Sufficient context? {has_context}")
         
         if not has_context:
-            # Not enough context - redirect to DM
+            logger.info(f"❌ Insufficient context, redirecting to DM")
             response = await self._send_auto_delete(
                 update, context,
                 "💬 *Need more details!*\n\n"
@@ -145,7 +164,8 @@ class GroupOrchestrator:
             )
             return
         
-        # === STEP 6: PROCESS WITH AGENT ===
+        # === STEP 5: PROCESS WITH AGENT ===
+        logger.info(f"🤖 STEP 5: Processing with AgentService...")
         if self.agent:
             try:
                 response = await self.agent.process(
@@ -154,15 +174,17 @@ class GroupOrchestrator:
                     user_profile=user_profile,
                     chat_type="group"
                 )
+                logger.info(f"✅ Agent response received ({len(response)} chars)")
                 await self._send_auto_delete(update, context, response)
+                logger.info(f"📤 Auto-delete message sent")
             except Exception as e:
-                logger.error(f"Agent error in group: {e}")
+                logger.error(f"❌ Agent error in group: {e}", exc_info=True)
                 await self._send_auto_delete(
                     update, context,
                     "Sorry, I encountered an error. Please try again."
                 )
         else:
-            logger.warning("No agent configured for GroupOrchestrator")
+            logger.warning("⚠️ No agent configured for GroupOrchestrator")
     
     async def _handle_violation(
         self,
@@ -180,37 +202,50 @@ class GroupOrchestrator:
         3. Send warning via DM
         4. Execute ban if threshold reached
         """
-        # Delete the message
+        logger.info(f"━━━ HANDLING VIOLATION ━━━")
+        logger.info(f"👤 User: {user_id} (@{username})")
+        logger.info(f"📍 Chat: {chat_id}")
+        
+        # Step 1: Delete the message
+        logger.info(f"🗑️ Step 1: Deleting offending message...")
         try:
             await update.message.delete()
-            logger.info(f"Deleted flagged message from user {user_id}")
+            logger.info(f"✅ Message deleted successfully")
         except Exception as e:
-            logger.warning(f"Could not delete message: {e}")
+            logger.warning(f"⚠️ Could not delete message: {type(e).__name__}: {e}")
         
-        # Add warning
+        # Step 2: Add warning
+        logger.info(f"⚠️ Step 2: Adding warning to user...")
         warning_result = await self.warning_service.add_warning(
             user_id=user_id,
             chat_id=chat_id,
             username=username,
             reason="content_violation"
         )
+        logger.info(f"📊 Warning count: {warning_result.warning_count}, should_ban: {warning_result.should_ban}")
         
-        # Send warning via DM
+        # Step 3: Send warning via DM
+        logger.info(f"📨 Step 3: Sending warning DM...")
         try:
             await send_to_user(context, user_id, warning_result.message)
+            logger.info(f"✅ Warning DM sent to user {user_id}")
         except Exception as e:
-            logger.warning(f"Could not send warning DM: {e}")
+            logger.warning(f"⚠️ Could not send warning DM: {type(e).__name__}: {e}")
         
-        # Execute ban if needed
+        # Step 4: Execute ban if needed
         if warning_result.should_ban:
-            logger.info(f"🚫 Ban triggered for user {user_id} in chat {chat_id}")
+            logger.info(f"🚫 Step 4: Executing BAN for user {user_id} in chat {chat_id}")
             ban_success = await self.warning_service.execute_ban(
                 bot=context.bot,
                 user_id=user_id,
                 chat_id=chat_id
             )
-            if not ban_success:
-                logger.error(f"Ban failed for user {user_id} - check bot admin permissions!")
+            if ban_success:
+                logger.info(f"✅ User {user_id} BANNED successfully")
+            else:
+                logger.error(f"❌ Ban FAILED for user {user_id} - check bot admin permissions!")
+        else:
+            logger.info(f"ℹ️ No ban needed (warning count below threshold)")
     
     async def _send_auto_delete(
         self,

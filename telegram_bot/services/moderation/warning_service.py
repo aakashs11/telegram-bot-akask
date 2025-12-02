@@ -144,11 +144,15 @@ class WarningService:
         Returns:
             WarningResult with count, ban status, and message
         """
+        logger.info(f"⚠️ Adding warning: user={user_id}, chat={chat_id}, reason={reason}")
+        
         ws = self._get_worksheet()
         cache_key = self._get_cache_key(user_id, chat_id)
         current_count = await self.get_warning_count(user_id, chat_id)
         new_count = current_count + 1
         should_ban = new_count >= self.BAN_THRESHOLD
+        
+        logger.info(f"   Previous count: {current_count}, New count: {new_count}, Should ban: {should_ban}")
         
         # Update storage
         if ws:
@@ -180,9 +184,9 @@ class WarningService:
                         str(new_count), reason, now,
                         "TRUE" if should_ban else "FALSE"
                     ])
-                    
+                    logger.debug(f"   ✅ Warning stored in Google Sheets")
             except Exception as e:
-                logger.error(f"Error updating warning: {e}")
+                logger.error(f"   ❌ Error updating warning in sheets: {e}")
         
         # Update cache
         self._cache[cache_key] = {"warning_count": new_count}
