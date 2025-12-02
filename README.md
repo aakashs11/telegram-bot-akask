@@ -240,12 +240,11 @@ pipenv run python -m evals.moderation_eval --verbose
 | English Abuse | 10 | profanity, slurs |
 | Safe (NOT flag) | 15 | Normal conversation |
 
-### Warning Flow
+### Warning Flow (2-Strike Policy)
 
 ```
-1st Violation → ⚠️ WARNING 1/2 (DM) + Message Deleted
-2nd Violation → 🛑 FINAL WARNING 2/2 (DM) + Message Deleted  
-3rd Violation → 🚫 BANNED + Removed from Group
+1st Violation → ⚠️ WARNING (DM) + Message Deleted
+2nd Violation → 🚫 BANNED + Removed from Group
 ```
 
 ---
@@ -361,4 +360,4 @@ MIT License - See LICENSE file for details
 
 ---
 
-**Made with ☕ for students**
+**Made with ☕ & ❤️ for students**

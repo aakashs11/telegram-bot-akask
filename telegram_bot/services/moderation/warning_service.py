@@ -188,34 +188,26 @@ class WarningService:
         self._cache[cache_key] = {"warning_count": new_count}
         
         # Generate warning message
+        # Note: BAN_THRESHOLD = 2 means ban on 2nd violation
         if should_ban:
             message = (
                 "🚫 *BANNED*\n\n"
                 "You have been *permanently removed* from the group.\n\n"
                 "Reason: Repeated violations of community guidelines "
                 "(spam, abuse, or inappropriate content).\n\n"
-                "This action is logged and cannot be appealed."
-            )
-        elif new_count == 1:
-            message = (
-                "⚠️ *WARNING 1/2*\n\n"
-                "Your message was *deleted* for containing inappropriate content "
-                "(spam, abuse, or policy violation).\n\n"
-                "📊 *You are now being tracked:*\n"
-                "• This warning is logged permanently\n"
-                "• Your user ID is recorded\n"
-                "• 1 more violation = *automatic ban*\n\n"
-                "Please follow community guidelines."
+                "This was your 2nd violation. This action is logged."
             )
         else:
+            # First and only warning before ban
             message = (
-                "🛑 *FINAL WARNING 2/2*\n\n"
-                "Your message was *deleted again* for violating group rules.\n\n"
-                "⚠️ *This is your last chance:*\n"
-                "• Your violations are logged\n"
-                "• Next violation = *PERMANENT BAN*\n"
-                "• You will be removed from the group\n\n"
-                "Consider this your final warning."
+                "⚠️ *WARNING - FIRST AND FINAL*\n\n"
+                "Your message was *deleted* for containing inappropriate content "
+                "(spam, abuse, or policy violation).\n\n"
+                "🚨 *You are now being tracked:*\n"
+                "• This warning is logged permanently\n"
+                "• Your user ID is recorded\n"
+                "• *NEXT violation = PERMANENT BAN*\n\n"
+                "This is your only warning. Follow community guidelines."
             )
         
         logger.info(f"Warning added: user={user_id}, chat={chat_id}, count={new_count}, ban={should_ban}")
