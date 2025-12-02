@@ -175,8 +175,9 @@ class GroupOrchestrator:
                     chat_type="group"
                 )
                 logger.info(f"✅ Agent response received ({len(response)} chars)")
-                await self._send_auto_delete(update, context, response)
-                logger.info(f"📤 Auto-delete message sent")
+                # Send response (NO auto-delete - keep helpful answers visible)
+                await update.message.reply_text(response, parse_mode="Markdown")
+                logger.info(f"📤 Response sent (permanent)")
             except Exception as e:
                 logger.error(f"❌ Agent error in group: {e}", exc_info=True)
                 await self._send_auto_delete(
