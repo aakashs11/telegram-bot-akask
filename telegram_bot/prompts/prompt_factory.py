@@ -75,3 +75,8 @@ class PromptFactory:
     def get_spam_detection_prompt(cls) -> str:
         """Get the spam detection system prompt from file"""
         return cls._load_prompt_file('spam_detection.md')
+    
+    @classmethod
+    def get_content_moderation_prompt(cls) -> str:
+        """Get the content moderation prompt from file"""
+        return cls._load_prompt_file('content_moderation.md')
