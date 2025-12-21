@@ -1,8 +1,9 @@
 """
-Main agent service using OpenAI function calling.
-Orchestrates tool execution based on user queries.
+Main agent service using OpenAI Responses API.
+Orchestrates tool execution based on user queries with native web search support.
 """
 
+import asyncio
 import json
 import logging
 from typing import Dict, List, Optional, Any
@@ -16,11 +17,16 @@ logger = logging.getLogger(__name__)
 
 class AgentService:
     """
-    Main agent that processes user queries using OpenAI function calling.
+    Main agent that processes user queries using OpenAI Responses API.
     
     Follows SOLID principles:
+    - Single Responsibility: Orchestrates tools and API calls
     - Open/Closed: Add tools without modifying agent code
     - Dependency Inversion: Depends on BaseTool abstraction
+    
+    Uses OpenAI Responses API for:
+    - Native web_search_preview tool for real-time web information
+    - Custom function tools for domain-specific operations
     """
     
     def __init__(
@@ -41,7 +47,7 @@ class AgentService:
         self.tools: Dict[str, BaseTool] = {}
         self.conversation_history: Dict[int, List[Dict]] = {}  # user_id -> messages
         
-        logger.info(f"AgentService initialized with model: {self.config.name}")
+        logger.info(f"AgentService initialized with model: {self.config.name} (Responses API)")
     
     def register_tool(self, tool: BaseTool):
         """
@@ -54,9 +60,32 @@ class AgentService:
         logger.info(f"Registered tool: {tool.name}")
     
     def _build_system_prompt(self, user_profile: Optional[Dict] = None) -> str:
-        """Build system prompt with user context using PromptFactory"""
+        """Build system prompt with user context using PromptFactory."""
         from telegram_bot.prompts import PromptFactory
         return PromptFactory.build_system_prompt(user_profile)
+    
+    def _build_tool_definitions(self) -> List[Dict]:
+        """
+        Build tool definitions for the Responses API.
+        
+        Returns:
+            List of tool definitions including web_search_preview and custom function tools.
+        """
+        tools = []
+        
+        # Add native web search tool
+        tools.append({"type": "web_search_preview"})
+        
+        # Add custom function tools
+        for tool in self.tools.values():
+            tools.append({
+                "type": "function",
+                "name": tool.name,
+                "description": tool.description,
+                "parameters": tool.parameters_schema
+            })
+        
+        return tools
     
     async def process(
         self,
@@ -67,7 +96,7 @@ class AgentService:
         chat_type: str = "private"
     ) -> str:
         """
-        Process user message using agent with tools.
+        Process user message using agent with tools via Responses API.
         
         Args:
             user_message: User's message
@@ -80,68 +109,44 @@ class AgentService:
             Agent's response
         """
         try:
-            # Build tool definitions for OpenAI
-            tool_definitions = [tool.definition for tool in self.tools.values()]
-            
             # Get or create conversation history for this user
             if user_id not in self.conversation_history:
                 self.conversation_history[user_id] = []
             
             history = self.conversation_history[user_id]
             
-            # Build messages with history
-            system_prompt = self._build_system_prompt(user_profile)
-            logger.debug(f"System Prompt: {system_prompt}")
+            # Build instructions (system prompt) with user context
+            instructions = self._build_system_prompt(user_profile)
+            logger.debug(f"Instructions: {instructions}")
             
-            messages = [
-                {"role": "system", "content": system_prompt}
-            ]
-            
-            # Get history limit based on chat type (Open/Closed principle - configurable)
+            # Get history limit based on chat type
             history_limit = (
                 self.context_config.group_history_limit
                 if chat_type in ['group', 'supergroup']
                 else self.context_config.private_history_limit
             )
             
-            # Add conversation history (limited by chat type)
-            messages.extend(history[-history_limit:])
+            # Build input messages (conversation history + current message)
+            input_messages = history[-history_limit:] + [
+                {"role": "user", "content": user_message}
+            ]
             
-            # Add current user message
-            messages.append({"role": "user", "content": user_message})
+            logger.debug(f"Input messages: {json.dumps(input_messages, indent=2)}")
             
-            logger.debug(f"Sending messages to OpenAI: {json.dumps(messages, indent=2)}")
+            # Build tool definitions
+            tools = self._build_tool_definitions()
             
-            # Call OpenAI with function calling
-            response = await self._call_openai(messages, tool_definitions)
-            logger.debug(f"OpenAI Response: {response}")
+            # Call Responses API
+            response = await self._call_responses_api(instructions, input_messages, tools)
+            logger.debug(f"Responses API Response: {response}")
             
-            # Check if tool calls were made
-            if hasattr(response.choices[0].message, 'tool_calls') and response.choices[0].message.tool_calls:
-                # Execute tool calls
-                tool_results = []
-                
-                for tool_call in response.choices[0].message.tool_calls:
-                    logger.info(f"Processing tool call: {tool_call.function.name} with args {tool_call.function.arguments}")
-                    result = await self._execute_tool(
-                        tool_call,
-                        user_id=user_id,
-                        user_profile=user_profile,
-                        user_service=user_service
-                    )
-                    tool_results.append(result)
-                
-                
-                # Combine all tool results
-                if tool_results:
-                    # Join all non-empty results with newline
-                    combined_results = "\n\n".join([r for r in tool_results if r])
-                    final_response = combined_results if combined_results else "I couldn't find what you're looking for."
-                else:
-                    final_response = "I couldn't find what you're looking for."
-            else:
-                # No tool calls - return text response
-                final_response = response.choices[0].message.content or "How can I help you?"
+            # Process the response output
+            final_response = await self._process_response(
+                response,
+                user_id=user_id,
+                user_profile=user_profile,
+                user_service=user_service
+            )
             
             # Update conversation history
             history.append({"role": "user", "content": user_message})
@@ -157,32 +162,165 @@ class AgentService:
             logger.error(f"Error in agent processing: {e}", exc_info=True)
             return "Sorry, I encountered an error. Please try again."
     
-    async def _call_openai(self, messages: List[Dict], tools: List[Dict]) -> Any:
-        """Call OpenAI API with retries"""
-        import asyncio
+    async def _call_responses_api(
+        self,
+        instructions: str,
+        input_messages: List[Dict],
+        tools: List[Dict]
+    ) -> Any:
+        """
+        Call OpenAI Responses API.
         
+        Args:
+            instructions: System instructions (prompt)
+            input_messages: Conversation history and current message
+            tools: Tool definitions including web_search_preview and custom functions
+            
+        Returns:
+            Response object from Responses API
+        """
         response = await asyncio.to_thread(
-            self.client.chat.completions.create,
+            self.client.responses.create,
             model=self.config.name,
-            messages=messages,
-            tools=tools if tools else None,
+            instructions=instructions,
+            input=input_messages,
+            tools=tools,
             temperature=self.config.temperature,
-            max_tokens=self.config.max_tokens,
-            frequency_penalty=self.config.frequency_penalty,
-            presence_penalty=self.config.presence_penalty
+            max_output_tokens=self.config.max_tokens
         )
         
         return response
     
-    async def _execute_tool(
+    async def _process_response(
         self,
-        tool_call: Any,
+        response: Any,
         user_id: int,
         user_profile: Optional[Dict] = None,
         user_service: Optional[Any] = None
     ) -> str:
-        """Execute a single tool call"""
-        tool_name = tool_call.function.name
+        """
+        Process the Responses API response and extract the final text.
+        
+        Handles:
+        - web_search_call: Native web search (automatic, no custom handling needed)
+        - function_call: Custom tool calls that need execution
+        - message: Text responses with optional citations
+        
+        Args:
+            response: Response object from Responses API
+            user_id: Telegram user ID
+            user_profile: Optional user profile dict
+            user_service: Optional UserService instance for tools
+            
+        Returns:
+            Final text response
+        """
+        text_parts = []
+        function_results = []
+        
+        for output_item in response.output:
+            if output_item.type == "message":
+                # Extract text from message content
+                text = self._extract_message_text(output_item)
+                if text:
+                    text_parts.append(text)
+                    
+            elif output_item.type == "function_call":
+                # Execute custom function tool
+                logger.info(f"Processing function call: {output_item.name}")
+                result = await self._execute_function_call(
+                    output_item,
+                    user_id=user_id,
+                    user_profile=user_profile,
+                    user_service=user_service
+                )
+                if result:
+                    function_results.append(result)
+                    
+            elif output_item.type == "web_search_call":
+                # Web search is handled automatically by OpenAI
+                # The results are incorporated into the message response
+                logger.info(f"Web search executed: status={output_item.status}")
+        
+        # Combine text parts and function results
+        if text_parts:
+            return "\n\n".join(text_parts)
+        elif function_results:
+            return "\n\n".join(function_results)
+        else:
+            return "How can I help you?"
+    
+    def _extract_message_text(self, message_item: Any) -> Optional[str]:
+        """
+        Extract text and format citations from a message output item.
+        
+        Args:
+            message_item: Message output item from Responses API
+            
+        Returns:
+            Formatted text with citations, or None if no text found
+        """
+        text_parts = []
+        
+        for content in message_item.content:
+            if content.type == "output_text" and hasattr(content, "text"):
+                text = content.text
+                
+                # Add citation footnotes if annotations exist
+                if hasattr(content, "annotations") and content.annotations:
+                    citations = self._format_citations(content.annotations)
+                    if citations:
+                        text = f"{text}\n\n{citations}"
+                
+                text_parts.append(text)
+        
+        return "\n".join(text_parts) if text_parts else None
+    
+    def _format_citations(self, annotations: List[Any]) -> str:
+        """
+        Format URL citations as footnotes.
+        
+        Args:
+            annotations: List of annotation objects from Responses API
+            
+        Returns:
+            Formatted citation string
+        """
+        citations = []
+        seen_urls = set()
+        
+        for ann in annotations:
+            if ann.type == "url_citation" and hasattr(ann, "url"):
+                url = ann.url
+                if url not in seen_urls:
+                    seen_urls.add(url)
+                    title = getattr(ann, "title", url)
+                    citations.append(f"[{len(citations) + 1}] {title}: {url}")
+        
+        if citations:
+            return "Sources:\n" + "\n".join(citations)
+        return ""
+    
+    async def _execute_function_call(
+        self,
+        function_call: Any,
+        user_id: int,
+        user_profile: Optional[Dict] = None,
+        user_service: Optional[Any] = None
+    ) -> str:
+        """
+        Execute a custom function tool call.
+        
+        Args:
+            function_call: Function call output item from Responses API
+            user_id: Telegram user ID
+            user_profile: Optional user profile dict
+            user_service: Optional UserService instance for tools
+            
+        Returns:
+            Result from executing the tool
+        """
+        tool_name = function_call.name
         
         if tool_name not in self.tools:
             logger.error(f"Tool not found: {tool_name}")
@@ -190,9 +328,9 @@ class AgentService:
         
         # Parse arguments
         try:
-            arguments = json.loads(tool_call.function.arguments)
+            arguments = json.loads(function_call.arguments)
         except json.JSONDecodeError:
-            logger.error(f"Invalid tool arguments: {tool_call.function.arguments}")
+            logger.error(f"Invalid tool arguments: {function_call.arguments}")
             return "Invalid request format."
         
         # Add context to arguments
