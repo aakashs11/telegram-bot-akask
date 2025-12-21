@@ -252,54 +252,26 @@ class AgentService:
     
     def _extract_message_text(self, message_item: Any) -> Optional[str]:
         """
-        Extract text and format citations from a message output item.
+        Extract text from a message output item.
+        
+        OpenAI Responses API already includes inline citations like ([domain](url))
+        in the response text, so no additional formatting is needed.
         
         Args:
             message_item: Message output item from Responses API
             
         Returns:
-            Formatted text with citations, or None if no text found
+            Text content, or None if no text found
         """
         text_parts = []
         
         for content in message_item.content:
             if content.type == "output_text" and hasattr(content, "text"):
-                text = content.text
-                
-                # Add citation footnotes if annotations exist
-                if hasattr(content, "annotations") and content.annotations:
-                    citations = self._format_citations(content.annotations)
-                    if citations:
-                        text = f"{text}\n\n{citations}"
-                
-                text_parts.append(text)
+                # OpenAI already includes inline citations like ([domain](url))
+                # No need for a separate footer - just use the text as-is
+                text_parts.append(content.text)
         
         return "\n".join(text_parts) if text_parts else None
-    
-    def _format_citations(self, annotations: List[Any]) -> str:
-        """
-        Format URL citations as footnotes.
-        
-        Args:
-            annotations: List of annotation objects from Responses API
-            
-        Returns:
-            Formatted citation string
-        """
-        citations = []
-        seen_urls = set()
-        
-        for ann in annotations:
-            if ann.type == "url_citation" and hasattr(ann, "url"):
-                url = ann.url
-                if url not in seen_urls:
-                    seen_urls.add(url)
-                    title = getattr(ann, "title", url)
-                    citations.append(f"[{len(citations) + 1}] {title}: {url}")
-        
-        if citations:
-            return "Sources:\n" + "\n".join(citations)
-        return ""
     
     async def _execute_function_call(
         self,
