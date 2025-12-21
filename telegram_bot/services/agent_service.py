@@ -242,11 +242,10 @@ class AgentService:
                 # The results are incorporated into the message response
                 logger.info(f"Web search executed: status={output_item.status}")
         
-        # Combine text parts and function results
-        if text_parts:
-            return "\n\n".join(text_parts)
-        elif function_results:
-            return "\n\n".join(function_results)
+        # Combine text parts and function results (both may exist for dual-intent queries)
+        all_parts = text_parts + function_results
+        if all_parts:
+            return "\n\n".join(all_parts)
         else:
             return "How can I help you?"
     
