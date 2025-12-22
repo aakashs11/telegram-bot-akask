@@ -1,6 +1,6 @@
 # 🤖 ASK AI - AI-Powered Telegram Study Assistant
 
-> An intelligent Telegram bot that helps Indian students access educational resources using conversational AI, powered by OpenAI's GPT-4o
+> An intelligent Telegram bot that helps Indian students access educational resources using conversational AI, powered by OpenAI's Responses API with native web search
 
 [![Deploy](https://img.shields.io/badge/Deploy-Cloud%20Run-blue)](https://cloud.google.com/run)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-green)](https://python.org)
@@ -28,7 +28,7 @@
 - **Persistent Tracking** - Warnings logged in Google Sheets
 
 🔧 **Advanced Features**
-- **Agentic AI** - Function calling with 4 specialized tools
+- **Agentic AI** - OpenAI Responses API with native web search + 4 custom tools
 - **Persistent Profiles** - Google Sheets backend for user data
 - **Auto-sync** - Drive content sync every 5 minutes
 - **Production Ready** - Deployed on Google Cloud Run with Secret Manager
@@ -167,7 +167,7 @@ telegram-bot-akask/
 │   ├── application.py                # Bot initialization & DI
 │   ├── handlers.py                   # Message routing (thin layer)
 │   ├── services/
-│   │   ├── agent_service.py          # OpenAI function calling
+│   │   ├── agent_service.py          # OpenAI Responses API
 │   │   ├── user_service.py           # Profile management (Sheets)
 │   │   ├── note_service.py           # Notes retrieval
 │   │   ├── drive_service.py          # Google Drive scanning
@@ -297,6 +297,7 @@ curl "https://api.telegram.org/bot${BOT_TOKEN}/getWebhookInfo" | jq
 - [x] Quote-reply context in groups
 - [x] Unified moderation for all chats
 - [x] Evaluation suite (75 test cases)
+- [x] OpenAI Responses API migration with native web search
 
 ### Planned 🚧
 - [ ] Appeal system for bans

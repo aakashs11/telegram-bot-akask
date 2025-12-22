@@ -75,3 +75,9 @@ populate_secrets.sh
 # Deploy key
 github-deploy-key.txt
 github-deploy-key.json
+
+# One-off files
+PR_DESCRIPTION.md
+
+# Data directory (empty, not needed in repo)
+data/
