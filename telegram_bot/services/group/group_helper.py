@@ -94,7 +94,7 @@ class GroupHelper:
         """
         if message.reply_to_message and message.reply_to_message.text:
             replied_text = message.reply_to_message.text
-            logger.info(f"💬 Quote-reply found: '{replied_text[:60]}...' ({len(replied_text)} chars)")
+            logger.info("💬 Quote-reply found (%s chars)", len(replied_text))
             return replied_text
         logger.debug(f"💬 No quote-reply in message")
         return None
@@ -158,7 +158,7 @@ class GroupHelper:
         Returns:
             True if we can respond without asking for more info
         """
-        logger.debug(f"📊 Checking sufficient context for: '{user_message[:50]}...'")
+        logger.debug("📊 Checking sufficient context for message (%s chars)", len(user_message))
         
         # Check if message is a resource request
         resource_keywords = ["notes", "paper", "book", "syllabus", "material", "pdf"]
@@ -172,11 +172,11 @@ class GroupHelper:
         logger.debug(f"   Resource request detected, checking for class/subject")
         
         # For resource requests, check if we have context
-        has_class = (
+        has_class = bool(
             (group_context and group_context.get("class")) or
             (user_profile and user_profile.get("current_class"))
         )
-        has_subject = (
+        has_subject = bool(
             (group_context and group_context.get("subject")) or
             (user_profile and user_profile.get("preferred_subject"))
         )
@@ -186,4 +186,3 @@ class GroupHelper:
         logger.info(f"📊 Sufficient context: {result} (class={has_class}, subject={has_subject})")
         
         return result
-

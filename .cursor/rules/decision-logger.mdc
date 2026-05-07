@@ -1,0 +1,39 @@
+---
+description: Decision Logger - Log architecture changes to DECISIONS.md
+globs:
+  - "**/*.py"
+  - "config/**"
+  - "requirements.txt"
+alwaysApply: true
+---
+
+# Decision Logging Protocol
+
+When making ANY architecture or technology decision during development:
+
+1. ALWAYS add a new entry to DECISIONS.md (never modify existing entries)
+2. Use the next sequential ADR number
+3. If changing a previous decision, mark the old one as "Superseded by ADR-NNN"
+4. Keep entries concise: Date, Status, Decision (1 sentence), Rationale (1 sentence)
+
+## What counts as a decision:
+- Choosing a new library or dependency
+- Changing how a service communicates with another
+- Modifying the database schema significantly
+- Changing the LLM model or routing logic
+- Adding a new platform adapter
+- Changing the deployment approach
+
+## What does NOT need logging:
+- Bug fixes, typo corrections, refactoring
+- Adding tests
+- Updating documentation
+- Minor prompt tweaks
+
+## Format:
+```
+### ADR-NNN: [Short Title]
+**Date:** YYYY-MM-DD | **Status:** Accepted
+**Decision:** [One sentence]
+**Rationale:** [One sentence]
+```

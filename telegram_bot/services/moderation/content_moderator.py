@@ -72,7 +72,7 @@ class ContentModerator:
         Returns:
             ModerationResult with is_flagged=True if inappropriate
         """
-        logger.debug(f"🔍 Moderation check: '{text[:50]}...'")
+        logger.debug("🔍 Moderation check (%s chars)", len(text))
         
         if not text or not text.strip():
             logger.debug(f"⏭️ Empty text, skipping moderation")
@@ -98,9 +98,9 @@ class ContentModerator:
             is_flagged = raw_response.startswith("YES")
             
             if is_flagged:
-                logger.warning(f"🚨 FLAGGED: '{text[:80]}' -> LLM: {raw_response}")
+                logger.warning("🚨 FLAGGED message (%s chars) -> LLM: %s", len(text), raw_response)
             else:
-                logger.debug(f"✅ PASSED: '{text[:50]}...' -> LLM: {raw_response}")
+                logger.debug("✅ PASSED message (%s chars) -> LLM: %s", len(text), raw_response)
             
             return ModerationResult(
                 is_flagged=is_flagged,
@@ -116,4 +116,3 @@ class ContentModerator:
                 category="error",
                 raw_response=str(e)
             )
-

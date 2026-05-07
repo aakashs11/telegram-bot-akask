@@ -44,6 +44,7 @@ class ListResourcesTool(BaseTool):
         self,
         class_number: Optional[int] = None,
         user_profile: Optional[Dict] = None,
+        is_admin: bool = False,
         **kwargs  # Accept additional args
     ) -> str:
         """
@@ -52,6 +53,7 @@ class ListResourcesTool(BaseTool):
         Args:
             class_number: Optional class (uses profile default if not provided)
             user_profile: User profile for defaults
+            is_admin: If True, can list all classes when class_number not specified
             **kwargs: Additional arguments (ignored)
             
         Returns:
@@ -60,7 +62,11 @@ class ListResourcesTool(BaseTool):
         # Use profile default if not provided
         if not class_number and user_profile:
             class_number = user_profile.get('current_class')
-        
+
+        # Admin: when no class specified, show all classes (10, 11, 12)
+        if not class_number and is_admin:
+            return await self._list_all_classes()
+
         if not class_number:
             return "Please specify which class (10, 11, or 12)."
         
@@ -92,3 +98,27 @@ class ListResourcesTool(BaseTool):
                 response.append(f"  • {resource_type}: {count} items")
         
         return "\n".join(response)
+
+    async def _list_all_classes(self) -> str:
+        """List available resources for all classes (admin only)."""
+        if not self.note_service:
+            return "ERROR: Service not available."
+
+        parts = ["📚 **All available resources:**\n"]
+        for cls in [10, 11, 12]:
+            notes = await self.note_service.get_notes(class_num=cls)
+            if not notes:
+                parts.append(f"\n**Class {cls}:** No resources found.")
+                continue
+            grouped = defaultdict(lambda: defaultdict(int))
+            for note in notes:
+                if len(note.tags) >= 3:
+                    subject = note.tags[1]
+                    resource_type = note.tags[2]
+                    grouped[subject][resource_type] += 1
+            parts.append(f"\n**Class {cls}:**")
+            for subject in sorted(grouped.keys()):
+                parts.append(f"  {subject}:")
+                for resource_type, count in sorted(grouped[subject].items()):
+                    parts.append(f"    • {resource_type}: {count} items")
+        return "\n".join(parts)

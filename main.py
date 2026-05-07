@@ -3,10 +3,15 @@ import os
 import requests
 import uvicorn
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from telegram import Update
 from telegram_bot.application import application  # Import your telegram application instance
-from config.settings import TELEGRAM_BOT_TOKEN, CLOUD_RUN_URL, get_sheet
+from config.settings import (
+    TELEGRAM_BOT_TOKEN,
+    TELEGRAM_WEBHOOK_SECRET,
+    CLOUD_RUN_URL,
+    get_sheet,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -21,9 +26,15 @@ async def lifespan(app: FastAPI):
     # Set the Telegram webhook if CLOUD_RUN_URL is provided
     if CLOUD_RUN_URL:
         webhook_url = f"{CLOUD_RUN_URL}/webhook"
+        webhook_payload = {"url": webhook_url}
+        if TELEGRAM_WEBHOOK_SECRET:
+            webhook_payload["secret_token"] = TELEGRAM_WEBHOOK_SECRET
+        else:
+            logger.warning("TELEGRAM_WEBHOOK_SECRET is not set; webhook requests cannot be authenticated.")
+
         response = requests.post(
             f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/setWebhook",
-            json={"url": webhook_url},
+            json=webhook_payload,
         )
         if response.status_code == 200:
             logger.info(f"Webhook set successfully: {webhook_url}")
@@ -54,6 +65,11 @@ async def read_root():
 
 @app.post("/webhook")
 async def handle_webhook(request: Request):
+    if TELEGRAM_WEBHOOK_SECRET:
+        header_secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
+        if header_secret != TELEGRAM_WEBHOOK_SECRET:
+            raise HTTPException(status_code=403, detail="Invalid webhook secret")
+
     try:
         # Ensure the Telegram application is initialized before processing updates
         await application.initialize()

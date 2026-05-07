@@ -1,0 +1,58 @@
+---
+description: Linear Issue Tracking Workflow
+globs:
+  - "**/*.py"
+  - "**/*.md"
+alwaysApply: true
+---
+
+# Linear Issue Tracking Protocol
+
+## Workspace Structure
+
+**Teams:**
+- **Engineering (ENG):** Backend, frontend, testing, infrastructure code
+- **Product (PRD):** Research, PRDs, product decisions, planning, reading
+
+**Project:** ASK AI Platform (shared across both teams)
+
+**Labels (available on both teams):**
+- Phase labels: `phase-0` through `phase-6`
+- Work type: `backend`, `frontend`, `testing`, `infra`, `research`, `product`
+
+## Issue Conventions
+
+**Title format:** `[P{N}] Short description` where N is the phase number
+- Example: `[P0] Fix is_admin passthrough`
+- Example: `[P1] Migrate UserService to Supabase`
+
+**Hierarchy:**
+- Parent issues = deliverables (user stories or features)
+- Sub-issues = implementation steps
+
+**Priority levels:**
+- 1 (Urgent): Blocking other work
+- 2 (High): Core deliverables for the phase
+- 3 (Medium): Sub-tasks and supporting work
+- 4 (Low): Nice-to-have, non-blocking
+
+## When Working on Issues
+
+1. Before starting work, move the issue to "In Progress"
+2. Reference the issue ID (e.g., ENG-5) in commit messages: `feat: fix is_admin passthrough (ENG-5)`
+3. When done, move to "Done"
+4. If new work is discovered, create a new issue -- never silently expand scope
+
+## When Creating New Issues
+
+- Always assign to correct team: code work → Engineering, planning/research → Product
+- Always add phase label
+- Always add work-type label
+- Link to parent issue if it's a sub-task
+- Include acceptance criteria in description
+
+## Free Plan Limits (250 active issues)
+
+- Archive completed issues regularly to stay under limit
+- Current usage: ~17 active issues (Phase 0)
+- Budget: ~35 issues per phase = 245 total across 7 phases

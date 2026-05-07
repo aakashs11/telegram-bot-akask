@@ -60,6 +60,7 @@ class NotesTool(BaseTool):
         resource_type: Optional[str] = None,
         topic: Optional[str] = None,
         user_profile: Optional[Dict] = None,
+        is_admin: bool = False,
         **kwargs  # Accept additional args like user_id
     ) -> str:
         """
@@ -71,6 +72,7 @@ class NotesTool(BaseTool):
             resource_type: Type of resource (defaults to "Notes")
             topic: Optional specific topic/subfolder
             user_profile: User profile dict for defaults
+            is_admin: If True, can request any class/subject (no profile needed)
             
         Returns:
             Formatted response with folder link or file list
@@ -82,7 +84,7 @@ class NotesTool(BaseTool):
         
         resource_type = resource_type or "Notes"
         
-        # Validate we have required info
+        # Validate we have required info (admins can request any - agent extracts from message)
         if not class_number or not subject:
             return (
                 "🤔 I need a bit more info to find the right notes!\n\n"

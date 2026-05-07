@@ -75,7 +75,12 @@ class ProfileTool(BaseTool):
             success = await user_service.update_user_profile(user_id, updates)
             if not success:
                 return "Failed to save profile updates. Please try again."
-        
+
+        # In groups, don't show profile update confirmation (keeps chat clean)
+        chat_type = kwargs.get("chat_type", "")
+        if chat_type in ("group", "supergroup"):
+            return ""
+
         messages = []
         if class_number:
             messages.append(f"✅ Updated class to {class_number}")

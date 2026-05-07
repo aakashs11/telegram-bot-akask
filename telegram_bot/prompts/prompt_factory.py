@@ -38,35 +38,48 @@ class PromptFactory:
             )
     
     @classmethod
-    def build_system_prompt(cls, user_profile: Optional[Dict] = None) -> str:
+    def build_system_prompt(cls, user_profile: Optional[Dict] = None, is_admin: bool = False) -> str:
         """
         Build the main agent system prompt with optional user profile context.
         
         Args:
             user_profile: Optional user profile dict with 'current_class' and 'preferred_subject'
+            is_admin: If True, user has admin privileges (can access all notes)
             
         Returns:
             Complete system prompt string
         """
         # Load base prompt from file
         base_prompt = cls._load_prompt_file('agent_system.md')
-        
+
+        # Build inserts for the intro line
+        anchor = "You're helpful, conversational, and understand natural student language."
+        inserts = []
+
+        if is_admin:
+            inserts.append(
+                "\n\n🔐 **ADMIN MODE**: This user is an admin. They can request notes for "
+                "ANY class (10, 11, 12) and subject (AI, CS, IP, IT). Use list_available_resources "
+                "without class to show all, or get_notes with any class/subject they specify."
+            )
+
         # If profile provided, inject profile section
         if user_profile:
             class_num = user_profile.get('current_class', 'None')
             subject = user_profile.get('preferred_subject', '')
-            
+
             # Load profile template
             profile_template = cls._load_prompt_file('profile_section.md')
             profile_section = profile_template.format(
                 class_num=class_num,
                 subject=subject
             )
-            
-            # Insert profile section after the intro line
+            inserts.append(f"\n\n{profile_section}")
+
+        if inserts:
             base_prompt = base_prompt.replace(
-                "You're helpful, conversational, and understand natural student language.",
-                f"You're helpful, conversational, and understand natural student language.\n\n{profile_section}"
+                anchor,
+                anchor + "".join(inserts)
             )
         
         return base_prompt

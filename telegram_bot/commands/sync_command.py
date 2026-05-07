@@ -1,6 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 from telegram_bot.services.sync_service import SyncService
+from config.settings import ADMIN_USER_IDS
 import logging
 
 logger = logging.getLogger(__name__)
@@ -12,7 +13,9 @@ class SyncCommand:
     async def sync_drive(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Triggers a manual Drive sync."""
         user_id = update.effective_user.id
-        # TODO: Add admin check here if needed (for now open to all or just owner)
+        if user_id not in ADMIN_USER_IDS:
+            await update.message.reply_text("🚫 Only bot admins can run sync.")
+            return
         
         status_msg = await update.message.reply_text("🔄 Starting Drive sync... This may take a moment.")
         

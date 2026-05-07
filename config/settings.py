@@ -23,6 +23,7 @@ else:
 
 # Core configuration - automatically uses Secret Manager in production
 TELEGRAM_BOT_TOKEN = load_secret("telegram-bot-token") or os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_WEBHOOK_SECRET = load_secret("telegram-webhook-secret") or os.getenv("TELEGRAM_WEBHOOK_SECRET")
 NGROK_URL = os.getenv("NGROK_URL")
 OPENAI_API_KEY = load_secret("openai-api-key") or os.getenv("OPENAI_API_KEY")
 YOUTUBE_API_KEY = load_secret("youtube-api-key") or os.getenv("YOUTUBE_API_KEY")

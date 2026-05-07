@@ -53,8 +53,19 @@ BOT_TOKEN=$(gcloud secrets versions access latest \
   --project $PROJECT_ID \
   --secret=telegram-bot-token)
 
-WEBHOOK_RESPONSE=$(curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/setWebhook" \
-  -d "url=${CLOUD_RUN_URL}/webhook")
+WEBHOOK_SECRET=$(gcloud secrets versions access latest \
+  --project $PROJECT_ID \
+  --secret=telegram-webhook-secret 2>/dev/null || true)
+
+if [ -n "$WEBHOOK_SECRET" ]; then
+  WEBHOOK_RESPONSE=$(curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/setWebhook" \
+    -d "url=${CLOUD_RUN_URL}/webhook" \
+    -d "secret_token=${WEBHOOK_SECRET}")
+else
+  echo "⚠️ telegram-webhook-secret not found; configuring webhook without request authentication."
+  WEBHOOK_RESPONSE=$(curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/setWebhook" \
+    -d "url=${CLOUD_RUN_URL}/webhook")
+fi
 
 echo "Webhook response: $WEBHOOK_RESPONSE"
 

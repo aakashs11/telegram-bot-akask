@@ -59,10 +59,14 @@ class AgentService:
         self.tools[tool.name] = tool
         logger.info(f"Registered tool: {tool.name}")
     
-    def _build_system_prompt(self, user_profile: Optional[Dict] = None) -> str:
+    def _build_system_prompt(
+        self,
+        user_profile: Optional[Dict] = None,
+        is_admin: bool = False,
+    ) -> str:
         """Build system prompt with user context using PromptFactory."""
         from telegram_bot.prompts import PromptFactory
-        return PromptFactory.build_system_prompt(user_profile)
+        return PromptFactory.build_system_prompt(user_profile, is_admin=is_admin)
     
     def _build_tool_definitions(self) -> List[Dict]:
         """
@@ -93,7 +97,8 @@ class AgentService:
         user_id: int,
         user_profile: Optional[Dict] = None,
         user_service: Optional[Any] = None,
-        chat_type: str = "private"
+        chat_type: str = "private",
+        is_admin: bool = False
     ) -> str:
         """
         Process user message using agent with tools via Responses API.
@@ -116,8 +121,8 @@ class AgentService:
             history = self.conversation_history[user_id]
             
             # Build instructions (system prompt) with user context
-            instructions = self._build_system_prompt(user_profile)
-            logger.debug(f"Instructions: {instructions}")
+            instructions = self._build_system_prompt(user_profile, is_admin=is_admin)
+            logger.debug("Built agent instructions (%s chars)", len(instructions))
             
             # Get history limit based on chat type
             history_limit = (
@@ -131,21 +136,31 @@ class AgentService:
                 {"role": "user", "content": user_message}
             ]
             
-            logger.debug(f"Input messages: {json.dumps(input_messages, indent=2)}")
+            logger.debug(
+                "Prepared %s input messages for chat_type=%s (current message=%s chars)",
+                len(input_messages),
+                chat_type,
+                len(user_message),
+            )
             
             # Build tool definitions
             tools = self._build_tool_definitions()
             
             # Call Responses API
             response = await self._call_responses_api(instructions, input_messages, tools)
-            logger.debug(f"Responses API Response: {response}")
+            logger.debug(
+                "Responses API returned %s output item(s)",
+                len(getattr(response, "output", []) or []),
+            )
             
             # Process the response output
             final_response = await self._process_response(
                 response,
                 user_id=user_id,
                 user_profile=user_profile,
-                user_service=user_service
+                user_service=user_service,
+                chat_type=chat_type,
+                is_admin=is_admin
             )
             
             # Update conversation history
@@ -196,7 +211,9 @@ class AgentService:
         response: Any,
         user_id: int,
         user_profile: Optional[Dict] = None,
-        user_service: Optional[Any] = None
+        user_service: Optional[Any] = None,
+        chat_type: str = "private",
+        is_admin: bool = False
     ) -> str:
         """
         Process the Responses API response and extract the final text.
@@ -232,7 +249,9 @@ class AgentService:
                     output_item,
                     user_id=user_id,
                     user_profile=user_profile,
-                    user_service=user_service
+                    user_service=user_service,
+                    chat_type=chat_type,
+                    is_admin=is_admin
                 )
                 if result:
                     function_results.append(result)
@@ -277,7 +296,9 @@ class AgentService:
         function_call: Any,
         user_id: int,
         user_profile: Optional[Dict] = None,
-        user_service: Optional[Any] = None
+        user_service: Optional[Any] = None,
+        chat_type: str = "private",
+        is_admin: bool = False
     ) -> str:
         """
         Execute a custom function tool call.
@@ -309,6 +330,8 @@ class AgentService:
         arguments['user_profile'] = user_profile
         if user_service:
             arguments['user_service'] = user_service
+        arguments['chat_type'] = chat_type
+        arguments['is_admin'] = is_admin
         
         # Execute tool
         tool = self.tools[tool_name]

@@ -68,6 +68,8 @@ class GroupOrchestrator:
         user_message: str,
         user_id: int,
         user_profile: Optional[dict] = None,
+        user_service: Optional[Any] = None,
+        is_admin: bool = False,
         bot_username: str = ""
     ) -> None:
         """
@@ -83,6 +85,7 @@ class GroupOrchestrator:
             user_message: Original message text
             user_id: Telegram user ID
             user_profile: User's profile data
+            user_service: UserService for profile updates (enables update_user_profile in groups)
             bot_username: Bot's username for mention detection
         """
         chat_id = update.effective_chat.id
@@ -92,7 +95,7 @@ class GroupOrchestrator:
         logger.info(f"━━━ GROUP MESSAGE ━━━")
         logger.info(f"📍 Group: '{group_title}' (chat_id={chat_id})")
         logger.info(f"👤 User: {user_id} (@{username})")
-        logger.debug(f"📝 Message: '{user_message[:80]}...'")
+        logger.debug("📝 Message length: %s chars", len(user_message))
         
         # === CHECK ADMIN WHITELIST ===
         is_admin = user_id in ADMIN_USER_IDS
@@ -107,7 +110,7 @@ class GroupOrchestrator:
                 message_for_moderation = user_message.replace(f"@{bot_username}", "").strip()
             
             logger.info(f"🔍 STEP 1: Running moderation check...")
-            logger.debug(f"   Checking: '{message_for_moderation[:60]}...'")
+            logger.debug("   Checking message length: %s chars", len(message_for_moderation))
             mod_result = await self.moderator.check(message_for_moderation)
         else:
             # Admins bypass moderation
@@ -116,7 +119,7 @@ class GroupOrchestrator:
         
         if mod_result.is_flagged:
             logger.warning(f"🚨 MESSAGE FLAGGED! Category: {mod_result.category}")
-            logger.warning(f"   Raw response: {mod_result.raw_response}")
+            logger.warning("   Moderation response: %s", mod_result.raw_response)
             await self._handle_violation(
                 update, context, user_id, chat_id, username
             )
@@ -135,7 +138,7 @@ class GroupOrchestrator:
         # Remove mention for cleaner processing
         if bot_username:
             user_message = user_message.replace(f"@{bot_username}", "").strip()
-            logger.debug(f"📝 Message after removing mention: '{user_message}'")
+            logger.debug("📝 Message after removing mention: %s chars", len(user_message))
         
         # === STEP 3: EXTRACT CONTEXT ===
         logger.info(f"📋 STEP 3: Extracting context...")
@@ -152,7 +155,7 @@ class GroupOrchestrator:
             replied_text=replied_text,
             group_context=group_context
         )
-        logger.debug(f"   Enriched message: '{enriched_message[:100]}...'")
+        logger.debug("   Enriched message length: %s chars", len(enriched_message))
         
         # === STEP 4: CHECK IF WE CAN RESPOND ===
         if not enriched_message:
@@ -163,13 +166,13 @@ class GroupOrchestrator:
             )
             return
         
-        # Check if we have enough context
-        has_context = self.helper.has_sufficient_context(
+        # Check if we have enough context (admins bypass - can access all notes)
+        has_context = is_admin or self.helper.has_sufficient_context(
             user_message=user_message,
             group_context=group_context,
             user_profile=user_profile
         )
-        logger.info(f"📊 STEP 4: Sufficient context? {has_context}")
+        logger.info(f"📊 STEP 4: Sufficient context? {has_context} (admin={is_admin})")
         
         if not has_context:
             logger.info(f"❌ Insufficient context, redirecting to DM")
@@ -189,7 +192,9 @@ class GroupOrchestrator:
                     user_message=enriched_message,
                     user_id=user_id,
                     user_profile=user_profile,
-                    chat_type="group"
+                    user_service=user_service,
+                    chat_type="group",
+                    is_admin=is_admin
                 )
                 logger.info(f"✅ Agent response received ({len(response)} chars)")
                 # Send response (NO auto-delete - keep helpful answers visible)
@@ -264,6 +269,17 @@ class GroupOrchestrator:
                 logger.error(f"❌ Ban FAILED for user {user_id} - check bot admin permissions!")
         else:
             logger.info(f"ℹ️ No ban needed (warning count below threshold)")
+
+    async def handle_violation(
+        self,
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+        user_id: int,
+        chat_id: int,
+        username: str,
+    ) -> None:
+        """Public wrapper used by platform adapters after runtime moderation."""
+        await self._handle_violation(update, context, user_id, chat_id, username)
     
     async def _send_auto_delete(
         self,
@@ -295,4 +311,3 @@ class GroupOrchestrator:
             
         except Exception as e:
             logger.error(f"Error sending auto-delete message: {e}")
-

@@ -2,11 +2,13 @@ import logging
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from config.settings import TELEGRAM_BOT_TOKEN
 from telegram_bot.handlers import start_command, handle_message
+from telegram_bot.adapters import TelegramAdapter
 from telegram_bot.infrastructure.drive_note_repository import DriveNoteRepository
 from telegram_bot.services import AgentService, UserService, DriveService, SyncService
 from telegram_bot.services.group import GroupOrchestrator
 from telegram_bot.services.moderation import ContentModerator, WarningService
 from telegram_bot.services.note_service import NoteService
+from telegram_bot.runtime import ChatRuntime
 from telegram_bot.tools import NotesTool, VideosTool, ProfileTool, ListResourcesTool
 from telegram_bot.commands.notes_command import NotesCommand
 from telegram_bot.commands.sync_command import SyncCommand
@@ -50,6 +52,14 @@ group_orchestrator = GroupOrchestrator(
 )
 logger.info("GroupOrchestrator initialized with ContentModerator and WarningService")
 
+chat_runtime = ChatRuntime(
+    agent=agent,
+    user_service=user_service,
+    content_moderator=content_moderator,
+)
+telegram_adapter = TelegramAdapter()
+logger.info("ChatRuntime and TelegramAdapter initialized")
+
 # Create the Telegram bot Application
 application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
@@ -58,6 +68,8 @@ application.bot_data["agent"] = agent
 application.bot_data["user_service"] = user_service
 application.bot_data["content_moderator"] = content_moderator  # Unified moderation for all chats
 application.bot_data["group_orchestrator"] = group_orchestrator
+application.bot_data["chat_runtime"] = chat_runtime
+application.bot_data["telegram_adapter"] = telegram_adapter
 
 # Initialize Sync Service
 drive_sync_service = SyncService(drive_service)

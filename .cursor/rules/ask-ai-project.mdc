@@ -1,0 +1,153 @@
+---
+description: ASK AI Educational Platform - Project Context and Architecture
+globs:
+  - "**/*.py"
+  - "**/*.md"
+  - "**/*.json"
+  - "**/*.yaml"
+  - "**/*.yml"
+alwaysApply: true
+---
+
+# ASK AI - Educational AI Platform Context
+
+## Project Vision
+
+ASK AI is an AI-powered educational platform for Indian CBSE students (Classes 10-12) studying AI, CS, IT, and IP. Started as a Telegram study bot, it is evolving into a memory-enabled, multi-platform learning system with content intelligence.
+
+**Scale:** 2,870 unique students, 14,470+ interactions, 83% returning user rate. YouTube channel: 100K subscribers, 30M+ views. Website: learnwithaakash.in
+
+**Creator:** Aakash Singh (IIT Bombay), single developer.
+
+## Architecture Overview
+
+### Current State (Telegram Bot)
+- **Framework:** FastAPI + python-telegram-bot v21
+- **LLM:** OpenAI GPT-4o via Responses API with function-calling
+- **Storage:** Google Sheets (profiles, logs, notes index, warnings) -- MIGRATING to Supabase
+- **Content:** Google Drive (200+ PDFs organized by Class > Subject > Type > Topic)
+- **Memory:** In-memory dict (lost on restart) -- ADDING Mem0 persistent memory
+- **Tools:** get_notes, list_available_resources, search_videos, update_user_profile, web_search_preview
+- **Deployment:** Google Cloud Run + Secret Manager
+
+### Target State (Unified Platform)
+- **Database:** Supabase PostgreSQL (separate project from academy-platform)
+- **LLM Routing:** GPT-4o for doubts/explanations, Gemini 2.5 Flash (FREE) for notes/links/greetings
+- **Embeddings:** gemini-embedding-001 (FREE, 3072 dims, MRL scalable to 768)
+- **Vector Store:** Supabase pgvector
+- **Memory:** Mem0 with Supabase pgvector backend
+- **Document Parsing:** Gemini 2.5 Flash (FREE, up to 1000 pages, multimodal)
+- **Content Sources:** Drive PDFs + YouTube transcripts + custom notes + NCERT/CBSE
+- **Platforms:** Telegram (now), Website (academy-platform), Discord (future)
+
+### Revised Technology Stack (Post-V0 Research)
+- **RAG:** Gemini File Search Tool (managed RAG, FREE storage + query embeddings)
+- **PDF Parsing:** IBM Docling (97.9% table accuracy, MIT, 56K stars) + PyMuPDF fallback
+- **Vector Store Split:** Gemini File Search (content) + Supabase pgvector (Mem0 memory only)
+- **Key Libraries:** google-genai (Gemini SDK), docling, mem0ai, fsrs (spaced repetition), youtube-transcript-api
+- **Decision Log:** All changes tracked in DECISIONS.md (immutable append-only)
+
+## Key Files
+
+| Area | Path |
+|------|------|
+| App wiring | `telegram_bot/application.py` |
+| Message routing | `telegram_bot/handlers.py` |
+| Agent brain | `telegram_bot/services/agent_service.py` |
+| System prompt | `telegram_bot/prompts/agent_system.md` |
+| User profiles | `telegram_bot/services/user_service.py` |
+| Note retrieval | `telegram_bot/services/note_service.py` |
+| Drive sync | `telegram_bot/services/sync_service.py` |
+| Group chat | `telegram_bot/services/group/group_orchestrator.py` |
+| Moderation | `telegram_bot/services/moderation/content_moderator.py` |
+| Config | `config/settings.py`, `config/model_config.py` |
+| Tools | `telegram_bot/tools/` (base.py, notes_tool.py, videos_tool.py, profile_tool.py, list_resources_tool.py) |
+
+## Student Data Insights (14,470 interactions analyzed)
+
+- **Top request:** "notes" (463x). 28% of all messages are notes/PDF requests.
+- **14% of responses** are "please specify class/subject" -- fixable with memory + better onboarding.
+- **14% "can't find content"** -- content gaps or search failures.
+- **Only 3% explanation requests** -- bot has trained students to treat it as a file server. RAG will change this.
+- **Class distribution:** Class 10 (69%), Class 11 (18%), Class 12 (14%).
+- **Subject:** AI (71%), CS (18%), IT (6%), IP (5%).
+- **42% of registered users never set class/subject** -- broken onboarding.
+
+## Implementation Phases
+
+| Phase | Scope | Status |
+|-------|-------|--------|
+| Phase 0 | Quick fixes (is_admin bug, onboarding, profile defaults) | Not started |
+| Phase 1 | Supabase migration (Google Sheets -> PostgreSQL) | Not started |
+| Phase 2 | Persistent memory (Mem0 + Supabase pgvector) | Not started |
+| Phase 3 | Content RAG (Gemini parsing + embeddings + doubt solving) | Not started |
+| Phase 4 | Smart features (board prep, quiz, study planner, video notes) | Not started |
+| Phase 5 | Website unification (academy-platform merge, admin dashboard) | Not started |
+| Phase 6 | Advanced (spaced repetition, progress tracking, multi-platform) | Not started |
+
+## Plan Documents
+
+All plans are in `.cursor/plans/`:
+- `00-master-overview.md` -- Phase index and dependency graph
+- `01-phase-0-quick-fixes.md` through `07-phase-6-advanced.md` -- Phase specs
+- `features-backlog.md` -- Full feature backlog with P0-P3 priorities
+- `technology-decisions.md` -- ADRs for all tech choices
+- `guardrails-spec.md` -- CBSE accuracy, Socratic method, citation rules
+- `skills-setup.md` -- Development skills and plugin installation
+
+## Comprehensive Research
+
+See `V0-PROJECT-BIBLE.md` in the repo root for the full research document covering:
+- Academic papers (Jarvis, LOOM, TASA, Nature RCTs)
+- EdTech industry analysis (Khanmigo, Duolingo)
+- OpenClaw/Supermemory vs Mem0 analysis
+- Google free tier research (Gemini, Firebase, embeddings)
+- Academy platform architecture notes
+- Student persona analysis from real data
+
+## Agent Directives
+
+- ALWAYS use parallel agents (5-10) when exploring code, researching, or creating multiple files
+- ALWAYS check DECISIONS.md before making architecture changes
+- ALWAYS log new architecture decisions to DECISIONS.md
+- When starting a new session, check the current phase status in this file
+- When completing a phase, update the phase status table below
+- Prefer existing libraries over custom implementations (see V0-PROJECT-BIBLE.md Section 15)
+
+## Development Conventions
+
+- Branch from `main`: `feat/...`, `fix/...`, `refactor/...`
+- Commits: `feat:`, `fix:`, `refactor:`, `docs:`
+- All prompts in `.md` files, not hardcoded in Python
+- SOLID principles: SRP services, DI via bot_data, BaseTool abstraction
+- Test locally via `./start_devtest.sh` before PR
+- Deploy via `./deploy.sh` to Cloud Run
+
+## Guardrails for Student Content
+
+- Answers MUST align with CBSE curriculum (subject codes: AI 417, CS 083, IT 402, IP 065)
+- Auto-detect answer format: explain vs board-exam style (1/2/3/5 mark)
+- Always cite sources: chapter, PDF name, video title with timestamp
+- Socratic method for conceptual questions (guide, don't just give answer)
+- Age-appropriate content filtering (Classes 10-12, ages 15-18)
+- No direct exam answers -- teach understanding, then model answer
+
+## Workflow: Which Tool for What
+
+- **Starting a phase:** GSD (`gsd-discuss-phase` -> `gsd-plan-phase` -> `gsd-execute-phase` -> `gsd-verify-work`)
+- **Complex feature inside a phase:** feature-dev (7-phase: discover -> explore -> clarify -> architect -> implement -> review -> summary)
+- **Need a PRD first:** PM skill `pm-create-prd`
+- **Quick fix:** `gsd-fast`
+- **Small task with some structure:** `gsd-quick`
+- **Don't know which command:** `gsd-do` (describe in plain English)
+- **Lost context:** Read this file (auto-loaded) + `V0-PROJECT-BIBLE.md` Section 16 + `gsd-resume-work`
+- **Prioritize features:** `pm-prioritize-features`
+- **Define student personas:** `pm-user-personas`
+- **Set up metrics:** `pm-metrics-dashboard`
+- **Debug a problem:** `gsd-debug`
+
+## Skills Inventory (90 total)
+
+- **GSD (57):** Phase management, execution, verification, debug, ship
+- **PM (27):** PRDs, sprints, personas, prioritization, OKRs, GTM, metrics
+- **Engineering (6):** feature-dev, claude-code-setup, supabase, security-guidance, playground, linear
