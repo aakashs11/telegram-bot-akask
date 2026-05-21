@@ -5,7 +5,7 @@ Single guide for getting the repo running, pulling dev credentials, and opening 
 **Maintainer provides separately (not in git):**
 
 - Bitwarden access token (read-only) + Send passcode, if applicable  
-- Dev Telegram bot `@username`  
+- Dev Telegram bot **[@akask_dev_bot](https://t.me/akask_dev_bot)**  
 - GitHub collaborator access to `aakashs11/telegram-bot-akask`
 
 ---
@@ -143,7 +143,7 @@ Useful log tail (separate terminal):
 tail -f /tmp/telegram-bot-server.log
 ```
 
-Message the **development** bot on Telegram (username from maintainer).
+Message the development bot on Telegram: **[@akask_dev_bot](https://t.me/akask_dev_bot)**.
 
 ### 5.1 Quick verification
 
