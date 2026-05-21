@@ -38,6 +38,8 @@
 
 ## 🚀 Quick Start
 
+**Contributing (platformization):** see **[docs/ONBOARDING.md](docs/ONBOARDING.md)** for branch setup, Bitwarden credentials, and PRs into `codex/platformization`.
+
 ### Prerequisites
 
 1. **Python 3.10+** and **pipenv**
@@ -57,6 +59,8 @@ pipenv install
 ```
 
 ### 2. Configure Environment
+
+See [docs/SECRETS.md](docs/SECRETS.md) for how to obtain and share credentials securely.
 
 ```bash
 cp .env.example .env
