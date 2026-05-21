@@ -123,7 +123,7 @@ export BWS_ACCESS_TOKEN='<your-write-token>'
 
 `SERVICE_ACCOUNT_JSON_B64` holds the same content as `service_account.json`, encoded so it can live in Secrets Manager.
 
-**Brother: one-time download** (read-only machine account token + project id):
+**New developer: one-time download** (read-only machine account token + project id):
 
 ```bash
 export BWS_ACCESS_TOKEN='<read-only-token>'

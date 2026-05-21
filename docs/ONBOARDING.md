@@ -8,7 +8,7 @@ Single guide for getting the repo running, pulling dev credentials, and opening 
 - Dev Telegram bot **[@akask_dev_bot](https://t.me/akask_dev_bot)**  
 - GitHub collaborator access to `aakashs11/telegram-bot-akask`
 
-Copy-paste invite text for your brother: [`docs/HANDOFF_MESSAGE.md`](HANDOFF_MESSAGE.md)
+Copy-paste invite text for new developers: [`docs/HANDOFF_MESSAGE.md`](HANDOFF_MESSAGE.md)
 
 ---
 
