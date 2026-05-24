@@ -63,12 +63,13 @@ class PromptFactory:
                 "without class to show all, or get_notes with any class/subject they specify."
             )
 
-        # If profile provided, inject profile section
-        if user_profile:
-            class_num = user_profile.get('current_class', 'None')
-            subject = user_profile.get('preferred_subject', '')
+        # Only inject profile section when both class and subject are set —
+        # every new user gets an auto-created profile with both fields as None,
+        # so a truthy dict alone is not sufficient.
+        class_num = user_profile.get('current_class') if user_profile else None
+        subject = user_profile.get('preferred_subject') if user_profile else None
+        if class_num and subject:
 
-            # Load profile template
             profile_template = cls._load_prompt_file('profile_section.md')
             profile_section = profile_template.format(
                 class_num=class_num,
