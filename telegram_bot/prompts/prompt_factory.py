@@ -63,16 +63,28 @@ class PromptFactory:
                 "without class to show all, or get_notes with any class/subject they specify."
             )
 
-        # If profile provided, inject profile section
-        if user_profile:
-            class_num = user_profile.get('current_class', 'None')
-            subject = user_profile.get('preferred_subject', '')
+        # Inject profile section based on how much is known.
+        # Every new user gets an auto-created profile with both fields as None,
+        # so a truthy dict alone is not sufficient — check the values.
+        class_num = user_profile.get('current_class') if user_profile else None
+        subject = user_profile.get('preferred_subject') if user_profile else None
 
-            # Load profile template
+        if class_num and subject:
+            # Full profile — use defaults, do not ask
             profile_template = cls._load_prompt_file('profile_section.md')
             profile_section = profile_template.format(
                 class_num=class_num,
-                subject=subject
+                subject=subject,
+            )
+            inserts.append(f"\n\n{profile_section}")
+        elif class_num or subject:
+            # Partial profile — only ask for the missing field
+            missing = "subject" if class_num else "class"
+            profile_template = cls._load_prompt_file('profile_section_partial.md')
+            profile_section = profile_template.format(
+                class_num=class_num or "not set yet",
+                subject=subject or "not set yet",
+                missing=missing,
             )
             inserts.append(f"\n\n{profile_section}")
 
