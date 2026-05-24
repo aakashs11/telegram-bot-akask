@@ -58,7 +58,7 @@ sleep 4  # Wait for ngrok to start
 
 # Get ngrok URL from API
 echo "🔍 Getting ngrok URL..."
-NGROK_URL=$(curl -s http://localhost:4040/api/tunnels | grep -o 'https://[a-zA-Z0-9.-]*\.ngrok-free\.app' | head -n 1)
+NGROK_URL=$(curl -s http://localhost:4040/api/tunnels | grep -o 'https://[a-zA-Z0-9.-]*\.ngrok-free\.[a-zA-Z]*' | head -n 1)
 
 if [ -z "$NGROK_URL" ]; then
     echo "❌ Error: Could not get ngrok URL"
