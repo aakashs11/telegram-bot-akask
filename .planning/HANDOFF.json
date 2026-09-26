@@ -1,0 +1,128 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-09-22T15:09:07-04:00",
+  "phase": "1",
+  "phase_name": "supabase-migration",
+  "phase_dir": ".planning/phases/01-supabase-migration",
+  "plan": 1,
+  "task": 5,
+  "total_tasks": 6,
+  "status": "paused",
+  "completed_tasks": [
+    {
+      "id": 1,
+      "name": "Define interaction contract, privacy rules, schema, and Alembic migration",
+      "status": "done"
+    },
+    {
+      "id": 2,
+      "name": "Add async PostgreSQL infrastructure and dual-write repositories",
+      "status": "done"
+    },
+    {
+      "id": 3,
+      "name": "Add unit and PostgreSQL integration coverage",
+      "status": "done"
+    },
+    {
+      "id": 4,
+      "name": "Build restartable backfill and payload reconciliation tooling",
+      "status": "done"
+    }
+  ],
+  "remaining_tasks": [
+    {
+      "id": 5,
+      "name": "Configure Supabase URLs, run online tests, deploy and observe dual-write",
+      "status": "not_started"
+    },
+    {
+      "id": 6,
+      "name": "Cut over to PostgreSQL, retain rollback, then archive Sheets",
+      "status": "not_started"
+    }
+  ],
+  "blockers": [
+    {
+      "description": "No DATABASE_URL or TEST_DATABASE_URL is configured and the Docker daemon is unavailable.",
+      "type": "human_action",
+      "workaround": "Configure pooled runtime and direct migration URLs for a Mumbai Supabase project, or provide a disposable PostgreSQL test URL."
+    },
+    {
+      "description": "Historical Google Sheets timestamps are timezone-naive.",
+      "type": "human_action",
+      "workaround": "Confirm the source timezone from a known interaction before backfill; Asia/Kolkata is documentation-only until confirmed."
+    },
+    {
+      "description": "Live cutover requires a 3-7 day dual-write observation window and a tested restore.",
+      "type": "external",
+      "workaround": "Follow docs/INTERACTION_LOGGING.md after database configuration."
+    }
+  ],
+  "human_actions_pending": [
+    {
+      "action": "Review the migration implementation and operational runbook.",
+      "context": "The user requested a pause before configuring database URLs.",
+      "blocking": true
+    },
+    {
+      "action": "Create or select the Supabase project in Mumbai and configure pooled DATABASE_URL plus direct migration URL in Secret Manager.",
+      "context": "Required for online tests, Alembic deployment, and Cloud Run dual-write.",
+      "blocking": true
+    },
+    {
+      "action": "Confirm historical Sheet timezone.",
+      "context": "Required to preserve old interaction timestamps correctly during backfill.",
+      "blocking": true
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "Use Supabase PostgreSQL in Mumbai while keeping runtime code provider-neutral through DATABASE_URL.",
+      "rationale": "Matches ADR-002 and future Mem0/pgvector work while preserving portability.",
+      "phase": "1"
+    },
+    {
+      "decision": "Use SQLAlchemy async, asyncpg, and Alembic instead of coupling domain services to supabase-py.",
+      "rationale": "Supports Neon or Cloud SQL later without rewriting domain services.",
+      "phase": "1"
+    },
+    {
+      "decision": "Use temporary fail-open dual-write with one shared UUID per event.",
+      "rationale": "Sheets and PostgreSQL cannot share a transaction; idempotency and reconciliation provide migration safety.",
+      "phase": "1"
+    },
+    {
+      "decision": "Do not remove the Sheets path until online reconciliation, restore testing, and the rollback observation window pass.",
+      "rationale": "The implementation is merge-ready but not deployment-ready.",
+      "phase": "1"
+    }
+  ],
+  "uncommitted_files": [
+    ".env.example",
+    ".gitignore",
+    "DECISIONS.md",
+    "Pipfile",
+    "README.md",
+    "config/settings.py",
+    "deploy.sh",
+    "docs/SECRETS.md",
+    "main.py",
+    "requirements.txt",
+    "telegram_bot/handlers.py",
+    "alembic.ini",
+    "docs/INTERACTION_LOGGING.md",
+    "migrations/",
+    "scripts/backfill_sheet_interactions.py",
+    "scripts/interaction_log_migration.py",
+    "scripts/reconcile_interaction_logs.py",
+    "telegram_bot/domain/interactions.py",
+    "telegram_bot/infrastructure/database.py",
+    "telegram_bot/infrastructure/postgres_interaction_repository.py",
+    "telegram_bot/infrastructure/sheets_interaction_repository.py",
+    "telegram_bot/services/interaction_logging_service.py",
+    "tests/"
+  ],
+  "next_action": "Review docs/INTERACTION_LOGGING.md and the diff, then configure a disposable TEST_DATABASE_URL and run the six skipped online PostgreSQL integration tests.",
+  "context_notes": "Migration-focused checks pass: 21 passed and 6 online PostgreSQL tests skipped; Ruff, compileall, Alembic offline SQL, dependency checks, deploy shell syntax, and diff audits pass. Bare pytest still sees one unrelated pre-existing unmarked async manual moderation script. No live database, Sheet mutation, Cloud Run deployment, commit, or production change was performed."
+}

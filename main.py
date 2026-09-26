@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import requests
@@ -10,7 +11,23 @@ from config.settings import (
     TELEGRAM_BOT_TOKEN,
     TELEGRAM_WEBHOOK_SECRET,
     CLOUD_RUN_URL,
+    DATABASE_URL,
+    DB_MAX_OVERFLOW,
+    DB_POOL_SIZE,
+    DB_POOL_TIMEOUT_SECONDS,
+    INTERACTION_LOG_MODE,
+    INTERACTION_WRITE_TIMEOUT_SECONDS,
     get_sheet,
+)
+from telegram_bot.infrastructure.database import Database
+from telegram_bot.infrastructure.postgres_interaction_repository import (
+    PostgresInteractionRepository,
+)
+from telegram_bot.infrastructure.sheets_interaction_repository import (
+    SheetsInteractionRepository,
+)
+from telegram_bot.services.interaction_logging_service import (
+    InteractionLoggingService,
 )
 
 
@@ -23,6 +40,8 @@ logging.basicConfig(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    database = None
+
     # Set the Telegram webhook if CLOUD_RUN_URL is provided
     if CLOUD_RUN_URL:
         webhook_url = f"{CLOUD_RUN_URL}/webhook"
@@ -45,17 +64,81 @@ async def lifespan(app: FastAPI):
             "CLOUD_RUN_URL is not set. The webhook will need to be configured manually."
         )
 
-    # Lazily initialize Google Sheet and place in bot_data for handlers to use
-    try:
-        sheet = get_sheet()
-        if sheet is not None:
-            application.bot_data["sh"] = sheet
-            logger.info("Google Sheet handle registered in application.bot_data.")
+    sheet_repository = None
+    if INTERACTION_LOG_MODE in {"sheet", "dual"}:
+        sheet_repository = SheetsInteractionRepository(get_sheet)
+
+    postgres_repository = None
+    database_ready = None
+    if INTERACTION_LOG_MODE in {"postgres", "dual"}:
+        if DATABASE_URL:
+            try:
+                database = Database(
+                    DATABASE_URL,
+                    pool_size=DB_POOL_SIZE,
+                    max_overflow=DB_MAX_OVERFLOW,
+                    pool_timeout_seconds=DB_POOL_TIMEOUT_SECONDS,
+                )
+                postgres_repository = PostgresInteractionRepository(
+                    database.engine
+                )
+                try:
+                    database_ready = await asyncio.wait_for(
+                        database.healthcheck(),
+                        timeout=DB_POOL_TIMEOUT_SECONDS,
+                    )
+                except asyncio.TimeoutError:
+                    database_ready = False
+            except Exception as exc:
+                database_ready = False
+                database = None
+                postgres_repository = None
+                logger.error(
+                    "Interaction database initialization failed",
+                    extra={
+                        "mode": INTERACTION_LOG_MODE,
+                        "error_type": type(exc).__name__,
+                    },
+                )
+            if not database_ready and postgres_repository is not None:
+                # Startup remains fail-open. Later writes still use the engine
+                # so a transient database outage can recover without a restart.
+                logger.error(
+                    "Interaction database health check failed",
+                    extra={"mode": INTERACTION_LOG_MODE},
+                )
         else:
-            logger.info("Google Sheet unavailable; proceeding without logging.")
-    except Exception as exc:
-        logger.warning(f"Failed to prepare Google Sheet: {exc}")
-    yield  # Allow the application to run
+            database_ready = False
+            logger.error(
+                "DATABASE_URL is required for the configured interaction log mode",
+                extra={"mode": INTERACTION_LOG_MODE},
+            )
+
+    logging_service = InteractionLoggingService(
+        mode=INTERACTION_LOG_MODE,
+        sheet_repository=sheet_repository,
+        postgres_repository=postgres_repository,
+        write_timeout_seconds=INTERACTION_WRITE_TIMEOUT_SECONDS,
+    )
+    application.bot_data["interaction_logging_service"] = logging_service
+    app.state.interaction_database = database
+    logger.info(
+        "Interaction logging initialized: mode=%s database_ready=%s",
+        INTERACTION_LOG_MODE,
+        database_ready,
+        extra={
+            "mode": INTERACTION_LOG_MODE,
+            "database_ready": database_ready,
+        },
+    )
+
+    try:
+        yield  # Allow the application to run
+    finally:
+        application.bot_data.pop("interaction_logging_service", None)
+        if database is not None:
+            await database.close()
+            logger.info("Interaction database connections closed")
 
 app = FastAPI(lifespan=lifespan)
 

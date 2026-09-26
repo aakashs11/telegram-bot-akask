@@ -5,6 +5,11 @@ python-telegram-bot==21.8
 openai==1.99.7
 python-dotenv==1.0.1
 
+# PostgreSQL interaction logging
+SQLAlchemy[asyncio]==2.0.43
+asyncpg==0.30.0
+alembic==1.16.5
+
 # Google Sheets integration (optional)
 gspread==6.1.4
 google-auth==2.36.0
@@ -17,3 +22,7 @@ aiohttp==3.11.11
 
 # Basic utilities
 pydantic==2.10.2
+
+# Focused unit/integration checks
+pytest==8.4.2
+pytest-asyncio==1.1.0

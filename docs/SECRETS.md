@@ -41,7 +41,7 @@ Confirm `.env` uses **`SHEET_ID`** (not `GOOGLE_SHEET_ID`). The application read
 
 ### 3. Prerequisites
 
-- Python 3.12 and [pipenv](https://pipenv.pypa.io/)
+- Python 3.12 and [pipenv](https://pipenv.pypa.io/) (`pipenv install --dev`)
 - [ngrok](https://ngrok.com/) (for local webhooks)
 - Repository clone and `pipenv install`
 
@@ -131,7 +131,7 @@ export BWS_PROJECT_ID='33403fe4-c585-4a77-ace7-b4510082ad50'
 
 cd telegram-bot-akask
 ./scripts/export_dev_env_from_bws.sh
-pipenv install
+pipenv install --dev
 ./start_devtest.sh
 ```
 
@@ -161,3 +161,16 @@ After export, he does **not** need `bws` again unless you rotate secrets.
 ## Production credentials
 
 Production secrets live in GCP Secret Manager for project `telegram-bot-akask`. Deployment is documented in `DEVELOPMENT_WORKFLOW.md` and performed with `./deploy.sh`. Local `.env` files are not used on Cloud Run.
+
+PostgreSQL interaction logging additionally uses the `database-url` Secret
+Manager secret when `INTERACTION_LOG_MODE` is `dual` or `postgres`. The URL
+must require TLS and should use the provider's pooled runtime endpoint. Use a
+direct connection separately when running `alembic upgrade head`; see
+[INTERACTION_LOGGING.md](INTERACTION_LOGGING.md).
+
+Do not store `INTERACTION_LOG_MODE`, pool sizes, or timeouts as secrets; set
+them as Cloud Run environment variables. Do not overwrite `database-url` with
+the direct migration endpoint: the runtime secret remains the pooled endpoint,
+while an operator supplies the direct URL only to the Alembic process. Grant
+`roles/secretmanager.secretAccessor` for `database-url` only to the Cloud Run
+runtime service account and named migration operators.

@@ -25,7 +25,7 @@ gcloud run deploy $SERVICE_NAME \
   --min-instances 0 \
   --max-instances 10 \
   --service-account $SERVICE_ACCOUNT \
-  --set-env-vars="GCP_PROJECT_ID=$PROJECT_ID" \
+  --update-env-vars="GCP_PROJECT_ID=$PROJECT_ID" \
   --quiet
 
 echo "✅ Deployment successful!"

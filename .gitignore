@@ -37,6 +37,9 @@ Thumbs.db
 *.log
 logs/
 
+# Local migration exports and reports can contain personal data
+artifacts/
+
 # Data files (now in Google Sheet)
 data/notes.json
 data/index.json
@@ -62,7 +65,7 @@ data/notes.json
 data/index.json
 
 # Test files
-test_*.py
+/test_*.py
 
 # Secret files and scripts
 populate_secrets.sh

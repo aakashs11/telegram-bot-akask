@@ -67,6 +67,16 @@
 **Decision:** Auto-detect answer format from student phrasing (explain -> detailed, define -> 1-mark, discuss -> 3-5 mark)
 **Rationale:** Students shouldn't have to specify format. Bot infers from natural language
 
+### ADR-011: PostgreSQL Access -- Provider-Neutral Async SQLAlchemy
+**Date:** 2026-09-22 | **Status:** Accepted
+**Decision:** Use SQLAlchemy async with asyncpg and Alembic behind `DATABASE_URL`, with temporary feature-flagged Sheets/PostgreSQL dual-write.
+**Rationale:** Portable infrastructure and shared idempotency keys enable a measurable migration without coupling application services to a database vendor SDK.
+
+### ADR-012: Interaction Backfill -- Stable Snapshot with Raw Timestamps
+**Date:** 2026-09-22 | **Status:** Accepted
+**Decision:** Backfill bounded rows from an immutable Sheet export using deterministic source references while storing both UTC-normalized and raw source timestamps.
+**Rationale:** Stable row identity makes retries idempotent, and preserving source text allows timezone conversion and payload reconciliation to remain auditable.
+
 ---
 
 ## Changelog

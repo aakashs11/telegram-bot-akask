@@ -6,11 +6,14 @@ Routes group messages to GroupOrchestrator, private messages to AgentService.
 """
 
 import logging
+from datetime import timezone
+from uuid import uuid4
+
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from telegram_bot.runtime import ChatType
-from utils.gspread_logging import log_interaction
+from telegram_bot.domain.interactions import InteractionEvent
+from telegram_bot.runtime import ChatResponse, ChatType
 from telegram_bot.services.message_service import send_response, send_plain
 
 logger = logging.getLogger(__name__)
@@ -86,7 +89,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             return
 
         await adapter.send_response(update, context, response)
-        await _log_private_interaction(update, context, chat_message, response.text)
+        await _log_private_interaction(update, context, chat_message, response)
 
     except Exception as e:
         logger.error(f"Error handling message: {e}", exc_info=True)
@@ -108,21 +111,44 @@ async def _handle_group_violation(update, context, chat_message) -> None:
     )
 
 
-async def _log_private_interaction(update, context, chat_message, response_text: str) -> None:
-    if chat_message.chat_type != ChatType.PRIVATE or not response_text:
+async def _log_private_interaction(
+    update,
+    context,
+    chat_message,
+    response: ChatResponse,
+) -> None:
+    if chat_message.chat_type != ChatType.PRIVATE or not response.text:
         return
 
-    sh = context.application.bot_data.get("sh")
-    if sh:
-        try:
-            log_interaction(
-                sh,
-                user_id=int(chat_message.platform_user_id),
-                user_message=chat_message.text,
-                bot_response=response_text,
-                screener_output="",
-                intent_output="agent",
-                entities_output=""
-            )
-        except Exception as log_error:
-            logger.warning(f"Failed to log interaction: {log_error}")
+    logging_service = context.application.bot_data.get(
+        "interaction_logging_service"
+    )
+    if logging_service is None:
+        logger.debug("Interaction logging service is not initialized")
+        return
+
+    event_id = uuid4()
+    try:
+        occurred_at = update.message.date
+        if occurred_at.tzinfo is None or occurred_at.utcoffset() is None:
+            occurred_at = occurred_at.replace(tzinfo=timezone.utc)
+
+        event = InteractionEvent(
+            event_id=event_id,
+            telegram_update_id=update.update_id,
+            telegram_user_id=int(chat_message.platform_user_id),
+            occurred_at=occurred_at,
+            user_message=chat_message.text,
+            bot_response=response.text,
+            screener_output=str(response.metadata.get("screener_output", "")),
+            intent_output=str(response.metadata.get("intent", "agent")),
+            entities_output=str(response.metadata.get("entities_output", "")),
+        )
+        await logging_service.log(event)
+    except Exception:
+        # The service reports sink failures independently. This final guard also
+        # covers contract construction so logging can never fail the response.
+        logger.exception(
+            "Unexpected interaction logging failure",
+            extra={"event_id": str(event_id)},
+        )

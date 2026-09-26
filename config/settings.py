@@ -1,6 +1,5 @@
 import os
 import logging
-from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -21,6 +20,28 @@ else:
         return os.getenv(env_var, default)
 
 
+def _choice_setting(name: str, default: str, allowed: set[str]) -> str:
+    value = os.getenv(name, default).strip().lower()
+    if value not in allowed:
+        choices = ", ".join(sorted(allowed))
+        raise ValueError(f"{name} must be one of: {choices}")
+    return value
+
+
+def _int_setting(name: str, default: int, minimum: int) -> int:
+    value = int(os.getenv(name, str(default)))
+    if value < minimum:
+        raise ValueError(f"{name} must be at least {minimum}")
+    return value
+
+
+def _float_setting(name: str, default: float, minimum: float) -> float:
+    value = float(os.getenv(name, str(default)))
+    if value < minimum:
+        raise ValueError(f"{name} must be at least {minimum}")
+    return value
+
+
 # Core configuration - automatically uses Secret Manager in production
 TELEGRAM_BOT_TOKEN = load_secret("telegram-bot-token") or os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_WEBHOOK_SECRET = load_secret("telegram-webhook-secret") or os.getenv("TELEGRAM_WEBHOOK_SECRET")
@@ -31,6 +52,26 @@ CLOUD_RUN_URL = load_secret("cloud-run-url") or os.getenv("CLOUD_RUN_URL")
 
 # Google Sheets
 SHEET_ID = load_secret("google-sheet-id") or os.getenv("SHEET_ID")
+
+# Interaction logging. The existing Sheet remains the safe default until
+# dual-write has been explicitly enabled and verified.
+INTERACTION_LOG_MODE = _choice_setting(
+    "INTERACTION_LOG_MODE",
+    "sheet",
+    {"sheet", "dual", "postgres", "off"},
+)
+DATABASE_URL = os.getenv("DATABASE_URL")
+if INTERACTION_LOG_MODE in {"dual", "postgres"}:
+    DATABASE_URL = load_secret("database-url") or DATABASE_URL
+
+DB_POOL_SIZE = _int_setting("DB_POOL_SIZE", 3, 1)
+DB_MAX_OVERFLOW = _int_setting("DB_MAX_OVERFLOW", 2, 0)
+DB_POOL_TIMEOUT_SECONDS = _float_setting("DB_POOL_TIMEOUT_SECONDS", 10.0, 0.1)
+INTERACTION_WRITE_TIMEOUT_SECONDS = _float_setting(
+    "INTERACTION_WRITE_TIMEOUT_SECONDS",
+    5.0,
+    0.1,
+)
 
 # Google Drive
 DRIVE_FOLDER_ID = load_secret("drive-folder-id") or os.getenv("DRIVE_FOLDER_ID", "")  # Root folder to scan
