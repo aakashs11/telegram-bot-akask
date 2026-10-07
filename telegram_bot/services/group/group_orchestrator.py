@@ -14,6 +14,7 @@ import logging
 from typing import Optional, Any
 
 from telegram import Update
+from telegram.constants import ChatID
 from telegram.ext import ContextTypes
 
 from telegram_bot.services.moderation import ContentModerator, WarningService
@@ -96,11 +97,20 @@ class GroupOrchestrator:
         
         # === CHECK ADMIN WHITELIST ===
         is_admin = user_id in ADMIN_USER_IDS
+        sender_chat = update.message.sender_chat
+        is_anonymous_group_admin = (
+            user_id == ChatID.ANONYMOUS_ADMIN
+            and sender_chat is not None
+            and sender_chat.id == chat_id
+        )
+        skip_moderation = is_admin or is_anonymous_group_admin
         if is_admin:
             logger.info(f"👑 User {user_id} is ADMIN - skipping moderation")
+        elif is_anonymous_group_admin:
+            logger.info("👑 Anonymous admin posted as this group - skipping moderation")
         
         # === STEP 1: MODERATION (runs on ALL messages, except admins) ===
-        if not is_admin:
+        if not skip_moderation:
             # Strip bot mention before moderation to avoid false positives
             message_for_moderation = user_message
             if bot_username:
@@ -295,4 +305,3 @@ class GroupOrchestrator:
             
         except Exception as e:
             logger.error(f"Error sending auto-delete message: {e}")
-
