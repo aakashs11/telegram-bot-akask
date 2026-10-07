@@ -11,7 +11,7 @@ from telegram_bot.services.group.group_orchestrator import GroupOrchestrator
 from telegram_bot.services.moderation.content_moderator import ModerationResult
 
 
-GROUP_ID = -1001620707015
+GROUP_ID = -1001234567890
 ANONYMOUS_ADMIN_ID = 1087968824
 
 
@@ -32,7 +32,7 @@ class AnonymousAdminModerationTests(unittest.IsolatedAsyncioTestCase):
         await orchestrator.handle_message(
             update=update,
             context=SimpleNamespace(),
-            user_message="https://youtu.be/1I-9nVXOp3M",
+            user_message="https://youtu.be/example",
             user_id=user_id,
             bot_username="akask_ai_bot",
         )
@@ -54,12 +54,12 @@ class AnonymousAdminModerationTests(unittest.IsolatedAsyncioTestCase):
             sender_chat=SimpleNamespace(id=-1009999999999, type="channel"),
         )
 
-        moderator.check.assert_awaited_once_with("https://youtu.be/1I-9nVXOp3M")
+        moderator.check.assert_awaited_once_with("https://youtu.be/example")
 
     async def test_fake_admin_id_without_group_sender_is_still_moderated(self):
         moderator, _, _ = await self._handle(ANONYMOUS_ADMIN_ID)
 
-        moderator.check.assert_awaited_once_with("https://youtu.be/1I-9nVXOp3M")
+        moderator.check.assert_awaited_once_with("https://youtu.be/example")
 
 
 if __name__ == "__main__":
