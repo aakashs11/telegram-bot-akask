@@ -366,7 +366,7 @@ unset RECONCILE_DATABASE_URL
 All validation gates are mandatory:
 
 - migration-focused unit tests and disposable PostgreSQL integration tests pass;
-- `alembic current` reports `20260922_0001`;
+- `alembic current` reports `20261013_0006`;
 - backfill accounting is exact and a rerun is idempotent;
 - no unexplained rejected rows remain;
 - historical payload hashes and raw timestamps match;
@@ -379,9 +379,30 @@ All validation gates are mandatory:
 
 ### 7. Backup and restore drill
 
-Supabase Free has no automatic backups. Before PostgreSQL becomes the sole
-interaction sink, either upgrade to a plan with the required backup retention
-or operate a tested encrypted `pg_dump` backup outside the database project.
+Supabase Free has no automatic backups. ADR-020 keeps the first live database
+on Free and uses a weekly `pg_dump` stored off the project.
+
+`scripts/backup_postgres.py` reads `DATABASE_URL` and does not print it.
+`--restore-drill` loads the dump into `ask_ai_restore_drill`, checks
+`alembic_version`, `students`, `content_items`, `folders`, `warnings`, and
+`interaction_events`, then drops that database. It does not write to the
+source database.
+
+On 14 Oct 2026 that drill passed against local `ask_ai`. The archive is
+`artifacts/ask-ai-20261014T202956Z.dump` (76,538 bytes). The restored check
+matched revision `20261013_0006`, 1,898 students, 222 files, 93 folders,
+163 warnings, and 22 log rows. The dump client was the Postgres 16 client
+inside `ask-ai-postgres`. A dump from the newer client on this PC fails to
+restore into Postgres 16 (`transaction_timeout` is not a setting there).
+For a remote database, use a `pg_dump` of the same major version as that
+server, and use the direct URL, not the pooler.
+
+```bash
+pipenv run python scripts/backup_postgres.py --restore-drill
+```
+
+The manual form below is the same archive shape. Use it when the script is
+not available. Restore only into a disposable empty database.
 
 Create a logical backup from the direct endpoint:
 
@@ -421,7 +442,7 @@ async def verify() -> None:
         async with engine.connect() as connection:
             revision = await connection.scalar(text("SELECT version_num FROM alembic_version"))
             count = await connection.scalar(text("SELECT count(*) FROM interaction_events"))
-        assert revision == "20260922_0001"
+        assert revision == "20261013_0006"
         assert isinstance(count, int) and count >= 0
         print(f"restore drill verified: revision={revision}, interaction_events={count}")
     finally:
