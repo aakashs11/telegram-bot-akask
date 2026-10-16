@@ -6,7 +6,7 @@ The operational commands for the interaction log (backfill, reconciliation, back
 
 ## Where this stands
 
-Updated 14 Oct 2026. Branch `feat/platformization/supabase-migration`. The Mac commit `2dfac84` (26 Sep 2026, ENG-79) added the interaction-log path. On this PC the dev bot reads profiles, the catalog, folder links, and warnings from local Postgres when `BOT_DATA_STORE=postgres`. `students` holds 1,898 copied profiles. `content_items` holds 222 catalog rows. `folders` holds 93 paths. `warnings` holds 163 rows. A live private chat on 14 Oct 2026 exercised notes, videos, profile updates, and sample papers. A weekly `pg_dump` script exists and has been restore-checked against this local database. The next step is the Supabase project.
+Updated 16 Oct 2026. Branch `feat/platformization/supabase-migration`. The Mac commit `2dfac84` (26 Sep 2026, ENG-79) added the interaction-log path. On this PC the dev bot still reads the local Docker database when `BOT_DATA_STORE=postgres`. The Mumbai Supabase project is at revision `20261013_0006` with 1,900 profiles, 222 files, 93 folders, and 163 warnings. Old logs are not in it. The next step is the Owner invite, then the Cloud Run secret. Production stays on Sheets.
 
 | Piece | State |
 | --- | --- |
@@ -74,13 +74,14 @@ The commit does not create a Supabase project, does not copy old Sheet rows, and
 - With `INTERACTION_LOG_MODE=postgres` and `BOT_DATA_STORE=postgres`, a real private message reads `students`, `content_items`, and `folders`, and writes `interaction_events`.
 - On 14 Oct 2026 the dev bot, for user `8405510906`, returned Class 12 AI notes, 8 videos, saved a profile change to class 11 subject IT and then to AI, and returned the Class 11 AI sample-paper folder. Each log insert succeeded in about 6 milliseconds. Class 11 IT sample papers are absent from the catalog, and those three replies said so.
 - On 14 Oct 2026 `scripts/backup_postgres.py --restore-drill` wrote `artifacts/ask-ai-20261014T202956Z.dump` (76,538 bytes) and loaded it into a temporary database. The check matched revision `20261013_0006`, 1,898 students, 222 files, 93 folders, 163 warnings, and 22 log rows. That temporary database was dropped. `ask_ai` was not changed. The dump uses the Docker container’s `pg_dump`, because the Postgres tools on this PC are newer than Postgres 16 and a host dump does not restore into this database.
+- On 16 Oct 2026 the Mumbai Free project was migrated to `20261013_0006`. This PC has no IPv6 route, and the direct host is IPv6-only, so Alembic and the dump used the session pooler on port 5432. The port 6543 pooler is still the one for Cloud Run. `students` has 1,900 rows. `Computer Vision` and `Banking` stayed rejected. `warnings` has 163 rows. Drive sync wrote 222 files and 93 folders. Old `Logs` were not copied, so `interaction_events` is empty. The public-schema dump `artifacts/ask-ai-20261016T180623Z.dump` (78,189 bytes) restored into a temporary Postgres 17 database with those same counts. The Supabase project was not given a second database.
 
 `screener_output` and `entities_output` on those new rows are empty. `intent_output` is `agent`. The current agent does not fill screener or entities. Historical `Logs` rows are not copied. ADR-019.
 
 ## What waits
 
-- Create the Supabase project in Mumbai on the Free plan. Store the pooled URL as `database-url`. Use the direct URL only for Alembic and the dump.
-- Apply migrations. Copy `UserProfiles` and `Warnings` again. Refresh the catalog with the Drive sync. Leave the two rejected subjects out. Do not copy old `Logs`.
+- Invite your brother as an Owner. The database password is already in `supabase.env` on this PC. Do not send it in chat.
+- Store the port 6543 pooler URL in Secret Manager as `database-url` only when Cloud Run should connect. The dev bot stays on local Docker until then.
 - Smoke-test one private message in dual-log mode against Supabase.
 - Merge to `main` with production still on Sheets.
 - Dual-write new logs for 3–4 days, then schedule the five-minute Drive sync.
@@ -305,14 +306,14 @@ Production stays on `INTERACTION_LOG_MODE=sheet`. The local `DATABASE_URL` stays
 
 ### Phase 7 — Supabase and cutover
 
-Not started. Follow `docs/INTERACTION_LOGGING.md` after the local checks.
+Started 16 Oct 2026. The project exists and the tables are loaded. Production is not pointed at it. Follow `docs/INTERACTION_LOGGING.md` for the cutover gates.
 
-1. Create the Supabase project in Mumbai.
-2. Store the pooled URL in Secret Manager as `database-url`. Use the direct URL only in the shell that runs Alembic.
+1. Done. The Supabase project is in Mumbai on the Free plan. This PC reaches it through the session pooler on port 5432 because the direct host is IPv6-only.
+2. Not done. Store the port 6543 pooler URL in Secret Manager as `database-url` when Cloud Run should connect. Do not put that URL in the dev `.env`.
 3. Apply the same migrations. `alembic current` must match local head.
 4. Smoke-test one private message in `dual` mode. The same `event_id` appears in Sheet column H and in Postgres.
 5. Do not backfill historical `Logs`. ADR-019. Dual-write new messages for 3–4 days that include a busy period, then compare those new rows.
-6. Copy `UserProfiles` and `Warnings` again at cutover. Refresh `content_items` and `folders` with the Drive sync. Schedule that sync only after `database-url` is set.
+6. Done for the first load on 16 Oct 2026: 1,900 profiles, 163 warnings, 222 files, 93 folders. Copy profiles and warnings again at cutover so rows edited after today are included. Schedule the five-minute Drive sync only after `database-url` is set.
 7. Switch reads to `postgres`. Keep dual log writes until the 3–4 day compare is clean.
 8. Stay on the Free plan. ADR-020. Run `scripts/backup_postgres.py` weekly against the direct URL and keep the file off the project. Free pauses after about a week without database use. The live bot is what keeps it awake. The local restore drill already passed on 14 Oct 2026.
 

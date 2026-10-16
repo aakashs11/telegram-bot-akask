@@ -336,14 +336,22 @@ User `8405510906` sent a private sequence on the dev bot. `INTERACTION_LOG_MODE`
 
 `scripts/backup_postgres.py` reads `DATABASE_URL` and does not print it. On this PC the database is the Docker container, so the script uses that container’s `pg_dump`. The computer’s own Postgres tools are newer and add a setting Postgres 16 does not understand. `--restore-drill` loads the dump into `ask_ai_restore_drill`, checks the counts, and drops that database. It does not touch `ask_ai`.
 
-The 14 Oct 2026 run wrote `artifacts/ask-ai-20261014T202956Z.dump` (76,538 bytes). The restored check matched revision `20261013_0006`, 1,898 students, 222 files, 93 folders, 163 warnings, and 22 log rows. Run it again with `pipenv run python scripts/backup_postgres.py --restore-drill`. The same command later uses the Supabase direct URL. Do not point it at the pooler.
+The 14 Oct 2026 run wrote `artifacts/ask-ai-20261014T202956Z.dump` (76,538 bytes). The restored check matched revision `20261013_0006`, 1,898 students, 222 files, 93 folders, 163 warnings, and 22 log rows. Run it again with `pipenv run python scripts/backup_postgres.py --restore-drill`.
+
+## Step 13 — Supabase has the tables
+
+On 16 Oct 2026 the Mumbai project was empty Postgres 17. The direct host is IPv6-only, and this PC has no IPv6 route, so `supabase.env` uses the session pooler on port 5432. That file is gitignored. Alembic reached `20261013_0006`.
+
+The sheet copy imported 1,900 profiles and 163 warnings. The same two profiles were rejected: subject `Computer Vision` and subject `Banking`. Timestamps without a zone were read as UTC, the same choice as the local warnings copy. Drive sync then wrote 222 files and 93 folders. `Class 12/AI/Notes` is still folder id `129Kuy43zVF-eeDATsmGEi7xailM0FW7M`. Old `Logs` were not copied.
+
+The first full-database dump also contained Supabase's own vault. That file was deleted. The script now dumps only the `public` schema. `artifacts/ask-ai-20261016T180623Z.dump` (78,189 bytes) restored into a temporary Postgres 17 container: revision `20261013_0006`, 1,900 students, 222 files, 93 folders, 163 warnings, and 0 log rows. The container was removed. A weekly cron entry is not installed.
 
 ## What is not built yet
 
 - A group-chat strike, so a live request reads and writes `warnings`. The private notes restart did not.
 - One side-by-side check of your own profile: the `students` row against the UserProfiles sheet.
 - The 100 scripted student messages.
-- A Supabase project and the `database-url` secret. Historical `Logs` are not backfilled. Free tier plus a weekly `pg_dump` is the backup plan. `scripts/backup_postgres.py` passed a local restore drill on 14 Oct 2026. Profiles and warnings are copied again when the URL exists. The five-minute Drive sync waits for that URL.
+- The `database-url` secret and an Owner invite. The Supabase project already has the schema, the copied profiles and warnings, and the Drive catalog. Historical `Logs` are not in it. The dev bot still uses local Docker. The five-minute Drive sync waits until Cloud Run has `database-url`.
 - The 180-day retention job for raw messages.
 - A merge to `main`. Production is still the Sheets log.
 
