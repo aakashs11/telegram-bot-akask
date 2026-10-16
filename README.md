@@ -42,20 +42,21 @@
 
 ### Prerequisites
 
-1. **Python 3.10+** and **pipenv**
+1. **Python 3.12** and **pipenv**
 2. **Telegram Bot Token** from [@BotFather](https://t.me/BotFather)
 3. **OpenAI API Key** from [OpenAI Platform](https://platform.openai.com)
 4. **Google Cloud Project** with:
    - Service Account JSON for Sheets/Drive access
    - YouTube Data API v3 enabled
 5. **ngrok** for local development
+6. **PostgreSQL 16 or Docker** for interaction-log migration work
 
 ### 1. Clone & Install (2 minutes)
 
 ```bash
 git clone https://github.com/aakashs11/telegram-bot-akask.git
 cd telegram-bot-akask
-pipenv install
+pipenv install --dev
 ```
 
 ### 2. Configure Environment
@@ -90,6 +91,26 @@ This script:
 - Shows live logs
 
 **That's it!** Message your bot to test.
+
+### PostgreSQL interaction logging
+
+Google Sheets remains the default interaction sink until the migration gates
+and observation windows are completed. To run a disposable local PostgreSQL:
+
+```bash
+docker run --name ask-ai-postgres --rm \
+  -e POSTGRES_USER=bot -e POSTGRES_PASSWORD=bot \
+  -e POSTGRES_DB=ask_ai -p 127.0.0.1:5432:5432 \
+  -d postgres:16-alpine
+export DATABASE_URL='postgresql://bot:bot@127.0.0.1:5432/ask_ai'
+pipenv run alembic upgrade head
+```
+
+Set `INTERACTION_LOG_MODE=sheet|dual|postgres|off`; keep `sheet` for ordinary
+local development unless both sinks are intentionally being tested. See
+[docs/INTERACTION_LOGGING.md](docs/INTERACTION_LOGGING.md) for the exact
+backfill, reconciliation, Secret Manager, rollout, rollback, backup/restore,
+validation, observation, and legacy cleanup procedures.
 
 ---
 

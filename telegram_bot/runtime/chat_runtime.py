@@ -82,7 +82,8 @@ class ChatRuntime:
         is_admin = message.is_admin
 
         moderation_text = self._strip_bot_mention(message.text, message.bot_username)
-        if not is_admin:
+        skip_moderation = is_admin or bool(message.metadata.get("skip_moderation"))
+        if not skip_moderation:
             mod_result = await self._moderate(moderation_text)
             if mod_result and mod_result.is_flagged:
                 return ChatResponse(

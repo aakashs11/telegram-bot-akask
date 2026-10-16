@@ -3,15 +3,115 @@ Sync Service.
 Syncs files from Google Drive to the local index.json file.
 """
 
-import json
 import logging
-import re
-from typing import List, Dict, Any
+from dataclasses import dataclass, field
+from typing import Dict, Any
 from telegram_bot.services.drive_service import DriveService
-from config.settings import DRIVE_FOLDER_ID, DRIVE_CONFIG_FOLDER_NAME, get_sheet
-from utils.gspread_logging import log_drive_changes_batch
+from config.settings import DRIVE_FOLDER_ID, get_sheet
 
 logger = logging.getLogger(__name__)
+
+FOLDER_MIME_TYPE = "application/vnd.google-apps.folder"
+
+
+@dataclass(frozen=True, slots=True)
+class CatalogSnapshot:
+    """One Drive scan, ready to replace the catalog tables."""
+
+    items: list[dict[str, str]] = field(default_factory=list)
+    folders: list[dict[str, str]] = field(default_factory=list)
+    skipped: int = 0
+    duplicate_file_ids: int = 0
+    duplicate_folder_ids: int = 0
+    duplicate_paths: int = 0
+
+
+def parse_catalog_metadata(path: str) -> Dict[str, str] | None:
+    """Split a Drive path into level, subject, type, and topic.
+
+    ``Class 12/AI/Notes/Computer Vision`` becomes level ``Class 12``,
+    subject ``AI``, type ``Notes``, topic ``Computer Vision``.
+    """
+    if not path:
+        return None
+
+    parts = path.split("/")
+    level = parts[0] if len(parts) >= 1 else "General"
+    subject = parts[1] if len(parts) >= 2 else "General"
+    res_type = parts[2] if len(parts) >= 3 else "Other"
+    topic = " - ".join(parts[3:]) if len(parts) >= 4 else ""
+    return {
+        "level": level,
+        "subject": subject,
+        "type": res_type,
+        "topic": topic,
+    }
+
+
+def catalog_from_drive_files(files: list[dict[str, Any]]) -> CatalogSnapshot:
+    """Turn a Drive listing into catalog rows. The first id or path wins."""
+    items: list[dict[str, str]] = []
+    folders: list[dict[str, str]] = []
+    seen_files: set[str] = set()
+    seen_folder_ids: set[str] = set()
+    seen_paths: set[str] = set()
+    skipped = 0
+    duplicate_file_ids = 0
+    duplicate_folder_ids = 0
+    duplicate_paths = 0
+
+    for file in files:
+        path = file.get("path", "") or ""
+        file_id = str(file.get("id", "")).strip()
+        if file.get("mimeType") == FOLDER_MIME_TYPE:
+            if not path or not file_id:
+                skipped += 1
+                continue
+            if file_id in seen_folder_ids:
+                duplicate_folder_ids += 1
+                continue
+            if path in seen_paths:
+                duplicate_paths += 1
+                continue
+            seen_folder_ids.add(file_id)
+            seen_paths.add(path)
+            folders.append(
+                {
+                    "drive_folder_id": file_id,
+                    "path": path,
+                    "url": f"https://drive.google.com/drive/folders/{file_id}",
+                }
+            )
+            continue
+
+        metadata = parse_catalog_metadata(path)
+        if metadata is None or not file_id or not str(file.get("name", "")).strip():
+            skipped += 1
+            continue
+        if file_id in seen_files:
+            duplicate_file_ids += 1
+            continue
+        seen_files.add(file_id)
+        items.append(
+            {
+                "drive_file_id": file_id,
+                "title": file["name"],
+                "link": file.get("webViewLink") or "",
+                "level": metadata["level"],
+                "subject": metadata["subject"],
+                "resource_type": metadata["type"],
+                "topic": metadata["topic"],
+            }
+        )
+
+    return CatalogSnapshot(
+        items=items,
+        folders=folders,
+        skipped=skipped,
+        duplicate_file_ids=duplicate_file_ids,
+        duplicate_folder_ids=duplicate_folder_ids,
+        duplicate_paths=duplicate_paths,
+    )
 
 class SyncService:
     """
@@ -21,6 +121,14 @@ class SyncService:
     def __init__(self, drive_service: DriveService):
         self.drive_service = drive_service
         self.index_filename = "index.json"
+
+    def build_snapshot(self) -> CatalogSnapshot:
+        """List Drive and return the rows a Postgres replace would write."""
+        if not DRIVE_FOLDER_ID:
+            raise ValueError("DRIVE_FOLDER_ID is not set")
+        current_files = self.drive_service.list_files_in_folder(DRIVE_FOLDER_ID)
+        logger.info("Found %s files in Drive.", len(current_files))
+        return catalog_from_drive_files(current_files)
 
     def sync_drive_to_index(self):
         """
@@ -108,42 +216,7 @@ class SyncService:
             except Exception as e:
                 logger.error(f"Failed to update sheets: {e}")
 
-    def _parse_metadata(self, filename: str, path: str = "") -> Dict[str, str]:
-        """
-        Extract metadata based on strict folder hierarchy:
-        Level (Class) > Subject > Type > Topic (Optional)
-        """
-        if not path:
-            return None
-            
-        parts = path.split('/')
-        
-        # Initialize defaults
-        level = "General"
-        subject = "General"
-        res_type = "Other"
-        topic = ""
-        
-        # Heuristic: We expect at least 2 levels (Level/Subject)
-        # Example: "Class 12/AI/Notes/Unit 1" -> parts = ["Class 12", "AI", "Notes", "Unit 1"]
-        
-        if len(parts) >= 1:
-            level = parts[0] # e.g., "Class 12", "College"
-            
-        if len(parts) >= 2:
-            subject = parts[1] # e.g., "AI", "CS", "IP"
-            
-        if len(parts) >= 3:
-            res_type = parts[2] # e.g., "Notes", "Books"
-            
-        if len(parts) >= 4:
-            # Join all remaining parts as the topic
-            # e.g., "Class 12/AI/Notes/Unit 1/Chapter 1" -> "Unit 1 - Chapter 1"
-            topic = " - ".join(parts[3:])
-            
-        return {
-            "level": level,
-            "subject": subject,
-            "type": res_type,
-            "topic": topic
-        }
+    def _parse_metadata(self, filename: str, path: str = "") -> Dict[str, str] | None:
+        """Extract metadata from the Drive folder path. The filename is unused."""
+        del filename
+        return parse_catalog_metadata(path)

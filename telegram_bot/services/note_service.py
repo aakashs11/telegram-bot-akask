@@ -1,5 +1,6 @@
 import uuid
 from typing import List, Optional
+from telegram_bot.domain.catalog_names import canonical_resource_type, catalog_paths_match
 from telegram_bot.domain.notes import Note, NoteRepository
 from config.settings import get_sheet
 
@@ -31,6 +32,10 @@ class NoteService:
         """
         if not class_num or not subject:
             return None
+
+        finder = getattr(self.repository, "get_folder_url", None)
+        if finder is not None:
+            return await finder(class_num, subject, resource_type, topic)
             
         # Build expected path
         # Format: "Class 10/AI/Notes" or "Class 10/AI/Notes/NLP"
@@ -52,7 +57,7 @@ class NoteService:
                 if len(row) >= 3:
                     path, folder_id, url = row[0], row[1], row[2]
                     # Match exact path or startswith for base folders
-                    if path == expected_path or (not topic and path.startswith(expected_path)):
+                    if catalog_paths_match(path, expected_path, topic):
                         return url
                         
         except Exception as e:
@@ -99,7 +104,7 @@ class NoteService:
                 continue
             if subject and subject != note_subject:
                 continue
-            if resource_type and resource_type != note_type:
+            if resource_type and canonical_resource_type(resource_type) != canonical_resource_type(note_type):
                 continue
             if topic and topic.lower() not in note_topic.lower():
                 continue

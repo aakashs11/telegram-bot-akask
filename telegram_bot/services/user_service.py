@@ -164,31 +164,28 @@ class UserService:
         return datetime.now()
 
     def _check_auto_progression(self, profile: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Check if student should be promoted to next class.
-        Logic: If current date > June 1st AND last update was previous year.
-        """
-        current_class = profile.get("current_class")
-        if not current_class:
-            return profile
+        """Check if the student should move up a class on 1 June."""
+        return apply_class_promotion(profile, self._get_current_time())
 
-        last_update_year = profile.get("class_updated_year", 0)
-        now = self._get_current_time()
-        current_year = now.year
-        
-        # Promotion happens on June 1st
-        promotion_date = datetime(current_year, 6, 1)
-        
-        # If we are past June 1st of current year, and haven't updated this year yet
-        if now >= promotion_date and last_update_year < current_year:
-            if current_class < 12:
-                new_class = current_class + 1
-                logger.info(f"🎓 Auto-promoting user {profile['user_id']} from {current_class} to {new_class}")
-                
-                # Return new profile dict (don't mutate original yet)
-                new_profile = profile.copy()
-                new_profile["current_class"] = new_class
-                new_profile["class_updated_year"] = current_year
-                return new_profile
-        
+
+def apply_class_promotion(profile: Dict[str, Any], now: datetime) -> Dict[str, Any]:
+    """Promote a class on 1 June when it has not already been promoted this year."""
+    current_class = profile.get("current_class")
+    if not current_class:
         return profile
+
+    last_update_year = profile.get("class_updated_year", 0)
+    promotion_date = datetime(now.year, 6, 1)
+    if now >= promotion_date and last_update_year < now.year and current_class < 12:
+        new_class = current_class + 1
+        logger.info(
+            "Auto-promoting user %s from %s to %s",
+            profile.get("user_id"),
+            current_class,
+            new_class,
+        )
+        promoted = profile.copy()
+        promoted["current_class"] = new_class
+        promoted["class_updated_year"] = now.year
+        return promoted
+    return profile

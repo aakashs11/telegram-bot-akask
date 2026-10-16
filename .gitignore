@@ -22,9 +22,10 @@ env/
 pip-log.txt
 pip-delete-this-directory.txt
 
-# IDEs
+# Local editor config
 .vscode/
 .idea/
+.cursor/mcp.json
 *.swp
 *.swo
 *~
@@ -36,6 +37,9 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# Local migration exports and reports can contain personal data
+artifacts/
 
 # Data files (now in Google Sheet)
 data/notes.json
@@ -62,7 +66,7 @@ data/notes.json
 data/index.json
 
 # Test files
-test_*.py
+/test_*.py
 
 # Secret files and scripts
 populate_secrets.sh
@@ -78,6 +82,10 @@ github-deploy-key.json
 
 # One-off files
 PR_DESCRIPTION.md
+
+# Personal notes. They stay on this machine and out of review.
+docs/study-notes.md
+docs/postgres-migration-plan.md
 
 # Data directory (empty, not needed in repo)
 data/

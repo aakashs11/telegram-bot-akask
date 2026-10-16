@@ -1,10 +1,15 @@
 import logging
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
-from config.settings import TELEGRAM_BOT_TOKEN
+from config.settings import BOT_DATA_STORE, DATABASE_URL, TELEGRAM_BOT_TOKEN
 from telegram_bot.handlers import start_command, handle_message
 from telegram_bot.adapters import TelegramAdapter
+from telegram_bot.infrastructure.database import Database
 from telegram_bot.infrastructure.drive_note_repository import DriveNoteRepository
+from telegram_bot.infrastructure.postgres_note_repository import PostgresNoteRepository
 from telegram_bot.services import AgentService, UserService, DriveService, SyncService
+from telegram_bot.services.postgres_user_service import PostgresUserService
+from telegram_bot.services.catalog_sync import replace_content_catalog
+from telegram_bot.services.postgres_warning_service import PostgresWarningService
 from telegram_bot.services.group import GroupOrchestrator
 from telegram_bot.services.moderation import ContentModerator, WarningService
 from telegram_bot.services.note_service import NoteService
@@ -28,10 +33,22 @@ os.makedirs("data", exist_ok=True)
 
 # Initialize Services
 drive_service = DriveService()
-note_repository = DriveNoteRepository(drive_service)
+if BOT_DATA_STORE == "postgres":
+    if not DATABASE_URL:
+        raise RuntimeError("DATABASE_URL is required when BOT_DATA_STORE=postgres")
+    catalog_database = Database(DATABASE_URL)
+    note_repository = PostgresNoteRepository(catalog_database)
+    user_service = PostgresUserService(catalog_database)
+    warning_service = PostgresWarningService(catalog_database)
+    logger.info("Profiles, notes, folders, and warnings are read from Postgres")
+else:
+    catalog_database = None
+    note_repository = DriveNoteRepository(drive_service)
+    user_service = UserService()
+    warning_service = WarningService()
+    logger.info("Profiles, notes, folders, and warnings are read from Google Sheets")
 note_service = NoteService(note_repository)
 notes_command = NotesCommand(note_service)
-user_service = UserService()
 agent = AgentService()
 
 # Register Tools
@@ -44,7 +61,6 @@ logger.info(f"Agent initialized with {len(agent.tools)} tools")
 
 # Initialize Group Moderation Services
 content_moderator = ContentModerator()
-warning_service = WarningService()
 group_orchestrator = GroupOrchestrator(
     content_moderator=content_moderator,
     warning_service=warning_service,
@@ -73,7 +89,7 @@ application.bot_data["telegram_adapter"] = telegram_adapter
 
 # Initialize Sync Service
 drive_sync_service = SyncService(drive_service)
-sync_command = SyncCommand(drive_sync_service)
+sync_command = SyncCommand(drive_sync_service, catalog_database, note_repository)
 
 # Initialize Welcome Command
 welcome_command = WelcomeCommand()
@@ -91,7 +107,16 @@ async def run_sync_job(context):
     """Runs the Drive sync in a separate thread to avoid blocking"""
     import asyncio
     loop = asyncio.get_running_loop()
-    # Run synchronous sync_drive_to_index in a thread pool
+    if catalog_database is not None:
+        snapshot = await loop.run_in_executor(None, drive_sync_service.build_snapshot)
+        await replace_content_catalog(catalog_database, snapshot)
+        note_repository.clear_cache()
+        logger.info(
+            "Drive sync replaced Postgres catalog: %s files, %s folders",
+            len(snapshot.items),
+            len(snapshot.folders),
+        )
+        return
     await loop.run_in_executor(None, drive_sync_service.sync_drive_to_index)
 
 # Schedule sync every 5 minutes (300 seconds) to be safe on API quota

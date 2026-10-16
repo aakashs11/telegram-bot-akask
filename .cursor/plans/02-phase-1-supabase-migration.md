@@ -2,23 +2,26 @@
 
 **Duration:** Week 1-2  
 **Dependencies:** None (Phase 0 is nice-to-have first but not blocking)  
-**Technology:** Supabase PostgreSQL, asyncpg, SQLAlchemy async, supabase-py  
+**Technology:** Supabase PostgreSQL, asyncpg, SQLAlchemy async, supabase-py
 
 ---
 
 ## User Stories
 
 ### US-1.1: Real Database
+
 > As a developer, I want all data in a real database so I don't hit Google Sheets rate limits.
 
 **Problem:** Google Sheets API has a 60 requests/minute quota. During peak hours (after school, 3-5 PM), the bot hits rate limits and drops requests. Sheets also lacks indexing, transactions, and concurrent writes.
 
 ### US-1.2: Faster Responses
+
 > As a student, I want the bot to respond faster (no Sheets API latency).
 
 **Problem:** Every Sheets API call adds 200-800ms of latency. Profile lookups, logging, and content index queries all go through Sheets. A single interaction can make 3-4 Sheets calls.
 
 ### US-1.3: SQL Access
+
 > As an admin, I want to query student data with SQL.
 
 **Problem:** Analyzing the 14,470+ interaction logs requires exporting CSVs from Sheets and processing in Python. No way to run ad-hoc queries like "how many students asked about Neural Networks this week?"
@@ -28,17 +31,20 @@
 ## Acceptance Criteria
 
 ### AC-1: Supabase Setup
+
 - [ ] New Supabase project created (separate from academy-platform)
 - [ ] Connection pooling configured (PgBouncer)
 - [ ] Row Level Security policies defined
 - [ ] Service role key stored in Google Secret Manager
 
 ### AC-2: Schema Deployed
+
 - [ ] All 5 tables created with proper constraints and indexes
 - [ ] pgvector extension enabled (for Phase 2 embedding column)
 - [ ] `content_index.embedding` column as `VECTOR(768)` ready for Phase 2
 
 ### AC-3: Services Migrated
+
 - [ ] `UserService` reads/writes from Supabase instead of Sheets
 - [ ] `gspread_logging` replaced with async Supabase inserts
 - [ ] `DriveNoteRepository` uses `content_index` table
@@ -46,6 +52,7 @@
 - [ ] `WarningService` uses `bot_warnings` table
 
 ### AC-4: Data Migration
+
 - [ ] Migration script imports 1,369 user profiles
 - [ ] Migration script imports 14,470+ interaction logs
 - [ ] Migration script imports 203 indexed content files
@@ -53,6 +60,7 @@
 - [ ] Data integrity verified: row counts match, spot-check 50 random records
 
 ### AC-5: Zero Downtime
+
 - [ ] Feature flag `USE_SUPABASE` in settings.py
 - [ ] Dual-write mode: write to both Sheets and Supabase during transition
 - [ ] Read from Supabase when flag is on, Sheets when off
@@ -160,6 +168,7 @@ CREATE INDEX idx_warnings_chat ON bot_warnings(chat_id);
 ### Week 1: Setup + Schema + Migration Script
 
 #### Day 1-2: Supabase Project Setup
+
 1. Create Supabase project (region: Mumbai for India latency)
 2. Run schema SQL above
 3. Enable pgvector extension
@@ -168,14 +177,18 @@ CREATE INDEX idx_warnings_chat ON bot_warnings(chat_id);
 6. Add `SUPABASE_DB_URL` (direct connection for SQLAlchemy)
 
 #### Day 3-4: Database Infrastructure
+
 **New file:** `telegram_bot/infrastructure/database.py`
+
 - Async SQLAlchemy engine with connection pooling
 - Session factory with context manager
 - Health check function
 - Graceful shutdown
 
 #### Day 5: Migration Script
+
 **New file:** `scripts/migrate_sheets_to_supabase.py`
+
 - Read all data from Google Sheets
 - Transform to match new schema (column name mapping, type conversion)
 - Batch insert into Supabase (500 rows at a time)
@@ -185,24 +198,32 @@ CREATE INDEX idx_warnings_chat ON bot_warnings(chat_id);
 ### Week 2: Service Migration + Dual-Write + Cutover
 
 #### Day 6-7: Migrate UserService
+
 **File:** `telegram_bot/services/user_service.py`
+
 - Replace gspread calls with SQLAlchemy queries
 - Keep same public API (get_user, update_user, etc.)
 - Add feature flag check: `if settings.USE_SUPABASE`
 
 #### Day 8: Migrate Logging
+
 **File:** `utils/gspread_logging.py`
+
 - Replace with async Supabase inserts to `bot_interactions`
 - Fire-and-forget pattern (don't block response on logging)
 - Batch writes for high-throughput periods
 
 #### Day 9: Migrate Content + Sync
+
 **Files:** `telegram_bot/infrastructure/drive_note_repository.py`, `telegram_bot/services/sync_service.py`
+
 - Content queries against `content_index` table
 - Sync writes to `content_index` and `folders`
 
 #### Day 10: Migrate Warnings + Testing + Cutover
+
 **File:** `telegram_bot/services/moderation/warning_service.py`
+
 - Warning CRUD against `bot_warnings` table
 - End-to-end testing of all flows
 - Enable `USE_SUPABASE=true` in production
@@ -212,22 +233,22 @@ CREATE INDEX idx_warnings_chat ON bot_warnings(chat_id);
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `config/settings.py` | Add Supabase config, `USE_SUPABASE` flag |
-| `telegram_bot/services/user_service.py` | Replace Sheets with Supabase queries |
-| `utils/gspread_logging.py` | Replace Sheets logging with async DB inserts |
-| `telegram_bot/infrastructure/drive_note_repository.py` | Query content_index table |
-| `telegram_bot/services/sync_service.py` | Write to content_index and folders tables |
-| `telegram_bot/services/moderation/warning_service.py` | Use bot_warnings table |
-| `requirements.txt` | Add asyncpg, sqlalchemy[asyncio], supabase |
+| File                                                   | Change                                       |
+| ------------------------------------------------------ | -------------------------------------------- |
+| `config/settings.py`                                   | Add Supabase config, `USE_SUPABASE` flag     |
+| `telegram_bot/services/user_service.py`                | Replace Sheets with Supabase queries         |
+| `utils/gspread_logging.py`                             | Replace Sheets logging with async DB inserts |
+| `telegram_bot/infrastructure/drive_note_repository.py` | Query content_index table                    |
+| `telegram_bot/services/sync_service.py`                | Write to content_index and folders tables    |
+| `telegram_bot/services/moderation/warning_service.py`  | Use bot_warnings table                       |
+| `requirements.txt`                                     | Add asyncpg, sqlalchemy[asyncio], supabase   |
 
 ## New Files
 
-| File | Purpose |
-|------|---------|
+| File                                      | Purpose                                               |
+| ----------------------------------------- | ----------------------------------------------------- |
 | `telegram_bot/infrastructure/database.py` | Async SQLAlchemy engine, session factory, pool config |
-| `scripts/migrate_sheets_to_supabase.py` | One-time data migration from Sheets to Supabase |
+| `scripts/migrate_sheets_to_supabase.py`   | One-time data migration from Sheets to Supabase       |
 
 ---
 

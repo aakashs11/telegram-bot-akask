@@ -16,8 +16,14 @@ pydantic = "==2.10.2"
 google-api-python-client = "*"
 aiofiles = "*"
 aiohttp = "*"
+sqlalchemy = {extras = ["asyncio"], version = "==2.0.43"}
+asyncpg = "==0.30.0"
+alembic = "==1.16.5"
+google-cloud-secret-manager = "==2.25.0"
 
 [dev-packages]
+pytest = "==8.4.2"
+pytest-asyncio = "==1.1.0"
 
 [requires]
 python_version = "3.12"

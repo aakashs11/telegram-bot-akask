@@ -2,6 +2,7 @@ import logging
 from typing import List, Optional
 
 from telegram import Message, Update
+from telegram.constants import ChatID
 from telegram.ext import ContextTypes
 from telegram.error import TelegramError
 
@@ -44,6 +45,13 @@ class TelegramAdapter:
             else ChatType.PRIVATE
         )
 
+        sender_chat = update.message.sender_chat
+        is_anonymous_group_admin = (
+            user.id == ChatID.ANONYMOUS_ADMIN
+            and sender_chat is not None
+            and sender_chat.id == chat.id
+        )
+
         return ChatMessage(
             platform=Platform.TELEGRAM,
             platform_user_id=str(user.id),
@@ -61,6 +69,7 @@ class TelegramAdapter:
                 "telegram_user_id": user.id,
                 "telegram_chat_id": chat.id,
                 "first_name": user.first_name,
+                "skip_moderation": is_anonymous_group_admin,
             },
         )
 
