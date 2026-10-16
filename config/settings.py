@@ -60,8 +60,15 @@ INTERACTION_LOG_MODE = _choice_setting(
     "sheet",
     {"sheet", "dual", "postgres", "off"},
 )
+# Profiles, the notes catalog, and folder links. sheet is the safe default.
+# postgres reads the local or Supabase tables copied from those worksheets.
+BOT_DATA_STORE = _choice_setting(
+    "BOT_DATA_STORE",
+    "sheet",
+    {"sheet", "postgres"},
+)
 DATABASE_URL = os.getenv("DATABASE_URL")
-if INTERACTION_LOG_MODE in {"dual", "postgres"}:
+if INTERACTION_LOG_MODE in {"dual", "postgres"} or BOT_DATA_STORE == "postgres":
     DATABASE_URL = load_secret("database-url") or DATABASE_URL
 
 DB_POOL_SIZE = _int_setting("DB_POOL_SIZE", 3, 1)

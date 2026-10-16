@@ -6,6 +6,7 @@ Implements NoteRepository using Google Drive as the storage backend.
 import json
 import logging
 from typing import List, Optional
+from telegram_bot.domain.catalog_names import canonical_resource_type
 from telegram_bot.domain.notes import Note, NoteRepository
 from telegram_bot.services.drive_service import DriveService
 from config.settings import get_sheet, DRIVE_CONFIG_FOLDER_NAME, DRIVE_FOLDER_ID
@@ -63,7 +64,7 @@ class DriveNoteRepository(NoteRepository):
                 link = row[1]
                 level = row[2]
                 subject = row[3]
-                res_type = row[4]
+                res_type = canonical_resource_type(row[4])
                 topic = row[5]
                 
                 # Create Note object

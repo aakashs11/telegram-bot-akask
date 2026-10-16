@@ -6,7 +6,7 @@ import uvicorn
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from telegram import Update
-from telegram_bot.application import application  # Import your telegram application instance
+from telegram_bot.application import application, catalog_database
 from config.settings import (
     TELEGRAM_BOT_TOKEN,
     TELEGRAM_WEBHOOK_SECRET,
@@ -139,6 +139,9 @@ async def lifespan(app: FastAPI):
         if database is not None:
             await database.close()
             logger.info("Interaction database connections closed")
+        if catalog_database is not None and catalog_database is not database:
+            await catalog_database.close()
+            logger.info("Catalog database connections closed")
 
 app = FastAPI(lifespan=lifespan)
 
