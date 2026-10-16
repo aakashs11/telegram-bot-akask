@@ -55,6 +55,9 @@ class SheetsInteractionRepository(InteractionRepository):
             self._header_initialized = True
 
         if not self._header_initialized:
+            missing_columns = len(self.HEADERS) - worksheet.col_count
+            if missing_columns > 0:
+                worksheet.add_cols(missing_columns)
             headers = worksheet.row_values(1)
             event_id_header = headers[7].strip() if len(headers) >= 8 else ""
             if event_id_header and event_id_header != self.HEADERS[7]:

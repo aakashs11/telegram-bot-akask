@@ -82,7 +82,7 @@ The commit does not create a Supabase project, does not copy old Sheet rows, and
 
 - Invite your brother as an Owner. The database password is already in `supabase.env` on this PC. Do not send it in chat.
 - Store the port 6543 pooler URL in Secret Manager as `database-url` only when Cloud Run should connect. The dev bot stays on local Docker until then.
-- Smoke-test one private message in dual-log mode against Supabase.
+- Smoke-test passed on 16 Oct 2026. One private "Give me notes" from user `8405510906` is event `ec737deb-05e0-497b-b936-12b5df0c31fc` in Supabase and in Logs column H, row 5659. The sheet grid had 7 columns, so the first write could not create column H. The writer now adds the missing column. The dev bot is back on local Docker.
 - Merge to `main` with production still on Sheets.
 - Dual-write new logs for 3–4 days, then schedule the five-minute Drive sync.
 
