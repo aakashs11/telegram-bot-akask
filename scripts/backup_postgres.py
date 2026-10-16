@@ -75,6 +75,35 @@ def local_container(url: str) -> bool:
     return parsed.host in {"127.0.0.1", "localhost"} and parsed.port == 5433
 
 
+def server_major(url: str) -> int:
+    parsed = make_url(url)
+    completed = subprocess.run(
+        [
+            require_tool("psql"),
+            "-h",
+            parsed.host or "",
+            "-p",
+            str(parsed.port or 5432),
+            "-U",
+            parsed.username or "postgres",
+            "-d",
+            parsed.database or "postgres",
+            "-tAc",
+            "SHOW server_version_num",
+        ],
+        env={
+            **os.environ,
+            "PGPASSWORD": parsed.password or "",
+            "PGSSLMODE": str(parsed.query.get("sslmode", "prefer")),
+        },
+        text=True,
+        capture_output=True,
+    )
+    if completed.returncode != 0:
+        raise RuntimeError(redact(completed.stderr.strip()) or "could not read the server version")
+    return int(completed.stdout.strip()) // 10000
+
+
 def dump_database(url: str, destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     parsed = make_url(url)
@@ -92,6 +121,7 @@ def dump_database(url: str, destination: Path) -> None:
                 "-d",
                 parsed.database or "ask_ai",
                 "--format=custom",
+                "--schema=public",
                 "--no-owner",
                 "--no-acl",
             ],
@@ -101,16 +131,36 @@ def dump_database(url: str, destination: Path) -> None:
             raise RuntimeError(redact(completed.stderr.decode().strip()) or "pg_dump failed")
         destination.write_bytes(completed.stdout)
         return
-    run(
+    major = server_major(url)
+    completed = subprocess.run(
         [
-            require_tool("pg_dump"),
+            "docker",
+            "run",
+            "--rm",
+            "-e",
+            f"PGPASSWORD={parsed.password or ''}",
+            "-e",
+            f"PGSSLMODE={parsed.query.get('sslmode', 'prefer')}",
+            f"postgres:{major}",
+            "pg_dump",
+            "-h",
+            parsed.host or "",
+            "-p",
+            str(parsed.port or 5432),
+            "-U",
+            parsed.username or "postgres",
+            "-d",
+            parsed.database or "postgres",
             "--format=custom",
+            "--schema=public",
             "--no-owner",
             "--no-acl",
-            f"--file={destination}",
-            url,
-        ]
+        ],
+        capture_output=True,
     )
+    if completed.returncode != 0:
+        raise RuntimeError(redact(completed.stderr.decode().strip()) or "pg_dump failed")
+    destination.write_bytes(completed.stdout)
 
 
 def assert_archive(path: Path) -> None:
@@ -148,10 +198,97 @@ def psql_command(url: str, database: str, sql: str, *, tuples_only: bool = False
     ]
 
 
+def restore_drill_container(dump_path: Path, major: int) -> dict[str, str]:
+    """Load a remote dump into a throwaway server of the same major version.
+
+    Supabase does not allow a second database, so the check stays on this PC.
+    """
+    name = "ask-ai-restore-drill"
+    subprocess.run(["docker", "rm", "-f", name], capture_output=True)
+    started = subprocess.run(
+        [
+            "docker",
+            "run",
+            "-d",
+            "--name",
+            name,
+            "-e",
+            "POSTGRES_HOST_AUTH_METHOD=trust",
+            "-e",
+            "POSTGRES_PASSWORD=drill",
+            f"postgres:{major}",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if started.returncode != 0:
+        raise RuntimeError(redact(started.stderr.strip()) or "restore drill server did not start")
+    try:
+        ready = False
+        for _ in range(30):
+            probe = subprocess.run(
+                ["docker", "exec", name, "pg_isready", "-U", "postgres"],
+                capture_output=True,
+            )
+            if probe.returncode == 0:
+                ready = True
+                break
+            subprocess.run(["sleep", "1"], check=False)
+        if not ready:
+            raise RuntimeError("restore drill server did not become ready")
+        run(
+            [
+                "docker",
+                "exec",
+                name,
+                "psql",
+                "-U",
+                "postgres",
+                "-d",
+                "postgres",
+                "-v",
+                "ON_ERROR_STOP=1",
+                "-c",
+                "DROP SCHEMA public CASCADE",
+            ]
+        )
+        run(
+            [
+                "docker",
+                "exec",
+                "-i",
+                name,
+                "pg_restore",
+                "-U",
+                "postgres",
+                "-d",
+                "postgres",
+                "--no-owner",
+                "--no-acl",
+            ],
+            input_bytes=dump_path.read_bytes(),
+        )
+        counts: dict[str, str] = {}
+        for table in TABLES:
+            if table == "alembic_version":
+                sql = "SELECT version_num FROM alembic_version"
+            else:
+                sql = f"SELECT count(*) FROM {table}"
+            counts[table] = run(
+                ["docker", "exec", name, "psql", "-U", "postgres", "-d", "postgres", "-tAc", sql]
+            ).stdout.strip()
+        return counts
+    finally:
+        subprocess.run(["docker", "rm", "-f", name], capture_output=True)
+
+
 def restore_drill(url: str, dump_path: Path) -> dict[str, str]:
+    if not local_container(url):
+        return restore_drill_container(dump_path, server_major(url))
     admin_name = "postgres"
     run(psql_command(url, admin_name, f"DROP DATABASE IF EXISTS {DRILL_DATABASE}"))
     run(psql_command(url, admin_name, f"CREATE DATABASE {DRILL_DATABASE}"))
+    run(psql_command(url, DRILL_DATABASE, "DROP SCHEMA public CASCADE"))
     try:
         if local_container(url):
             parsed = make_url(url)
