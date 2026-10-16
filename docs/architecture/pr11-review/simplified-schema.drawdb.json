@@ -1,0 +1,538 @@
+{
+  "title": "ASK AI \u2014 proposed simplified schema \u2014 ENG-84",
+  "database": "postgresql",
+  "tables": [
+    {
+      "id": "students",
+      "name": "students",
+      "x": 40,
+      "y": 60,
+      "width": 360,
+      "fields": [
+        {
+          "id": "telegram_user_id",
+          "name": "telegram_user_id",
+          "type": "BIGINT",
+          "default": "",
+          "check": "",
+          "primary": true,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "Telegram supplies this ID. Never generate it.",
+          "size": ""
+        },
+        {
+          "id": "username",
+          "name": "username",
+          "type": "TEXT",
+          "default": "''",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        },
+        {
+          "id": "current_class",
+          "name": "current_class",
+          "type": "SMALLINT",
+          "default": "",
+          "check": "current_class IN (10, 11, 12)",
+          "primary": false,
+          "unique": false,
+          "notNull": false,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        },
+        {
+          "id": "preferred_subject",
+          "name": "preferred_subject",
+          "type": "TEXT",
+          "default": "",
+          "check": "preferred_subject IN ('AI', 'CS', 'IT', 'IP')",
+          "primary": false,
+          "unique": false,
+          "notNull": false,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        },
+        {
+          "id": "created_at",
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "default": "",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        },
+        {
+          "id": "last_updated",
+          "name": "last_updated",
+          "type": "TIMESTAMPTZ",
+          "default": "",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        },
+        {
+          "id": "class_updated_year",
+          "name": "class_updated_year",
+          "type": "INTEGER",
+          "default": "",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        }
+      ],
+      "comment": "One saved profile per Telegram user.",
+      "indices": [],
+      "uniqueConstraints": [],
+      "color": "#4f5d75",
+      "locked": false,
+      "hidden": false,
+      "collapsed": false,
+      "inherits": []
+    },
+    {
+      "id": "content_items",
+      "name": "content_items",
+      "x": 460,
+      "y": 60,
+      "width": 360,
+      "fields": [
+        {
+          "id": "drive_file_id",
+          "name": "drive_file_id",
+          "type": "TEXT",
+          "default": "",
+          "check": "",
+          "primary": true,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        },
+        {
+          "id": "title",
+          "name": "title",
+          "type": "TEXT",
+          "default": "",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        },
+        {
+          "id": "link",
+          "name": "link",
+          "type": "TEXT",
+          "default": "''",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        },
+        {
+          "id": "level",
+          "name": "level",
+          "type": "TEXT",
+          "default": "",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        },
+        {
+          "id": "subject",
+          "name": "subject",
+          "type": "TEXT",
+          "default": "",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        },
+        {
+          "id": "resource_type",
+          "name": "resource_type",
+          "type": "TEXT",
+          "default": "",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        },
+        {
+          "id": "topic",
+          "name": "topic",
+          "type": "TEXT",
+          "default": "''",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        }
+      ],
+      "comment": "One catalogue record per Drive file. Actual PDFs remain in Drive.",
+      "indices": [
+        {
+          "name": "ix_content_items_lookup",
+          "unique": false,
+          "fields": [
+            "level",
+            "subject",
+            "resource_type"
+          ]
+        }
+      ],
+      "uniqueConstraints": [],
+      "color": "#4f5d75",
+      "locked": false,
+      "hidden": false,
+      "collapsed": false,
+      "inherits": []
+    },
+    {
+      "id": "folders",
+      "name": "folders",
+      "x": 880,
+      "y": 60,
+      "width": 360,
+      "fields": [
+        {
+          "id": "drive_folder_id",
+          "name": "drive_folder_id",
+          "type": "TEXT",
+          "default": "",
+          "check": "",
+          "primary": true,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        },
+        {
+          "id": "path",
+          "name": "path",
+          "type": "TEXT",
+          "default": "",
+          "check": "",
+          "primary": false,
+          "unique": true,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        },
+        {
+          "id": "url",
+          "name": "url",
+          "type": "TEXT",
+          "default": "''",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        }
+      ],
+      "comment": "One Drive folder link per unique path.",
+      "indices": [],
+      "uniqueConstraints": [],
+      "color": "#4f5d75",
+      "locked": false,
+      "hidden": false,
+      "collapsed": false,
+      "inherits": []
+    },
+    {
+      "id": "warnings",
+      "name": "warnings",
+      "x": 40,
+      "y": 440,
+      "width": 360,
+      "fields": [
+        {
+          "id": "telegram_user_id",
+          "name": "telegram_user_id",
+          "type": "BIGINT",
+          "default": "",
+          "check": "",
+          "primary": true,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        },
+        {
+          "id": "telegram_chat_id",
+          "name": "telegram_chat_id",
+          "type": "BIGINT",
+          "default": "",
+          "check": "",
+          "primary": true,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "Group IDs can be negative. Together with user ID this forms ONE composite primary key.",
+          "size": ""
+        },
+        {
+          "id": "username",
+          "name": "username",
+          "type": "TEXT",
+          "default": "''",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        },
+        {
+          "id": "warning_count",
+          "name": "warning_count",
+          "type": "INTEGER",
+          "default": "",
+          "check": "warning_count >= 0",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        },
+        {
+          "id": "last_reason",
+          "name": "last_reason",
+          "type": "TEXT",
+          "default": "''",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        },
+        {
+          "id": "last_warning",
+          "name": "last_warning",
+          "type": "TIMESTAMPTZ",
+          "default": "",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        },
+        {
+          "id": "banned",
+          "name": "banned",
+          "type": "BOOLEAN",
+          "default": "false",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        }
+      ],
+      "comment": "One moderation snapshot per Telegram user and group. No profile is required.",
+      "indices": [],
+      "uniqueConstraints": [],
+      "color": "#4f5d75",
+      "locked": false,
+      "hidden": false,
+      "collapsed": false,
+      "inherits": []
+    },
+    {
+      "id": "interaction_events",
+      "name": "interaction_events",
+      "x": 460,
+      "y": 440,
+      "width": 360,
+      "fields": [
+        {
+          "id": "event_id",
+          "name": "event_id",
+          "type": "UUID",
+          "default": "",
+          "check": "",
+          "primary": true,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "Generated by the app and shared across temporary dual writes.",
+          "size": ""
+        },
+        {
+          "id": "telegram_update_id",
+          "name": "telegram_update_id",
+          "type": "BIGINT",
+          "default": "",
+          "check": "",
+          "primary": false,
+          "unique": true,
+          "notNull": false,
+          "increment": false,
+          "comment": "Unique within one bot. Null permitted. Does not guarantee exactly-once replies.",
+          "size": ""
+        },
+        {
+          "id": "telegram_user_id",
+          "name": "telegram_user_id",
+          "type": "BIGINT",
+          "default": "",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        },
+        {
+          "id": "occurred_at",
+          "name": "occurred_at",
+          "type": "TIMESTAMPTZ",
+          "default": "",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "Incoming message time.",
+          "size": ""
+        },
+        {
+          "id": "user_message",
+          "name": "user_message",
+          "type": "TEXT",
+          "default": "",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        },
+        {
+          "id": "bot_response",
+          "name": "bot_response",
+          "type": "TEXT",
+          "default": "",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "",
+          "size": ""
+        },
+        {
+          "id": "created_at",
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "default": "CURRENT_TIMESTAMP",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": true,
+          "increment": false,
+          "comment": "Event creation time, distinct from message time.",
+          "size": ""
+        }
+      ],
+      "comment": "PROPOSED: seven fields instead of twelve. Private Telegram exchanges only. One bot per database/environment. Audit log, not AI memory.",
+      "indices": [
+        {
+          "name": "ix_interaction_events_occurred_at",
+          "unique": false,
+          "fields": [
+            "occurred_at"
+          ]
+        },
+        {
+          "name": "ix_interaction_events_telegram_user_id",
+          "unique": false,
+          "fields": [
+            "telegram_user_id"
+          ]
+        }
+      ],
+      "uniqueConstraints": [],
+      "color": "#bf4520",
+      "locked": false,
+      "hidden": false,
+      "collapsed": false,
+      "inherits": []
+    }
+  ],
+  "relationships": [],
+  "notes": [
+    {
+      "id": 0,
+      "x": 880,
+      "y": 340,
+      "width": 360,
+      "height": 340,
+      "color": "#f5f5f5",
+      "title": "PROPOSED \u00b7 2026-10-17 \u00b7 ENG-84",
+      "content": "Five tables / 31 fields. Not applied to any database.\n\nNo foreign keys are proposed. Moderation and logs can exist before a student profile.\n\nReview: remove five old log fields only after archiving values and retiring old readers/writers.\n\nKeep separate dev and production databases. RLS, API grants, backups and cutover are separate work in ENG-86/87.",
+      "locked": false
+    }
+  ],
+  "subjectAreas": [],
+  "types": [],
+  "enums": [],
+  "views": [],
+  "sqlHeader": "-- DESIGN ONLY. Proposed schema for ENG-84. Not an executable migration or security configuration."
+}
