@@ -11,7 +11,11 @@ from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from telegram_bot.infrastructure.database import async_database_url
+from telegram_bot.infrastructure.postgres_content_items import content_items
+from telegram_bot.infrastructure.postgres_folders import folders
 from telegram_bot.infrastructure.postgres_interaction_repository import metadata
+from telegram_bot.infrastructure.postgres_students import students
+from telegram_bot.infrastructure.postgres_warnings import warnings
 
 config = context.config
 
@@ -19,6 +23,14 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 target_metadata = metadata
+if students.metadata is not target_metadata:
+    raise RuntimeError("students table is not registered on migration metadata")
+if content_items.metadata is not target_metadata:
+    raise RuntimeError("content_items table is not registered on migration metadata")
+if folders.metadata is not target_metadata:
+    raise RuntimeError("folders table is not registered on migration metadata")
+if warnings.metadata is not target_metadata:
+    raise RuntimeError("warnings table is not registered on migration metadata")
 
 
 def configured_url() -> str:

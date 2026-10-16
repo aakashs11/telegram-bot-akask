@@ -87,7 +87,7 @@ async def test_alembic_head_creates_expected_schema(
             "ix_interaction_events_occurred_at",
             "ix_interaction_events_telegram_user_id",
         } <= schema["indexes"]
-        assert revision == "20260922_0001"
+        assert revision == "20261013_0006"
     finally:
         await engine.dispose()
 
