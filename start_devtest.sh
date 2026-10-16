@@ -37,21 +37,48 @@ cleanup() {
 
 trap cleanup SIGINT SIGTERM
 
-# Kill any existing processes on port 8080
-echo "🧹 Cleaning up port 8080..."
-lsof -ti:8080 | xargs kill -9 2>/dev/null || true
+# Stop a previous dev server started by this script. Do not kill other
+# listeners (Docker publishes Odysseus SearXNG on 127.0.0.1:8080).
+echo "🧹 Stopping any previous dev server..."
+pkill -f "uvicorn main:app --host 0.0.0.0 --port" 2>/dev/null || true
 sleep 1
+
+port_in_use() {
+    ss -tlnH "sport = :$1" | grep -q .
+}
+
+DEV_PORT="${DEV_PORT:-8080}"
+if port_in_use "$DEV_PORT"; then
+    echo "⚠️  Port ${DEV_PORT} is already in use (Odysseus SearXNG listens on 127.0.0.1:8080)."
+    for candidate in 8081 8082 8888 8090; do
+        if ! port_in_use "$candidate"; then
+            DEV_PORT="$candidate"
+            break
+        fi
+    done
+    if port_in_use "$DEV_PORT"; then
+        echo "❌ Error: No free dev port found (tried 8080, 8081, 8082, 8888, 8090)."
+        exit 1
+    fi
+    echo "   Using port ${DEV_PORT} instead."
+fi
 
 # Start uvicorn server in background
 echo "📦 Starting server..."
-pipenv run uvicorn main:app --host 0.0.0.0 --port 8080 > /tmp/telegram-bot-server.log 2>&1 &
+pipenv run uvicorn main:app --host 0.0.0.0 --port "$DEV_PORT" > /tmp/telegram-bot-server.log 2>&1 &
 SERVER_PID=$!
 echo "   Server PID: $SERVER_PID"
 sleep 3  # Wait for server to start
 
+if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+    echo "❌ Error: Server exited during startup. Last log lines:"
+    tail -n 30 /tmp/telegram-bot-server.log
+    exit 1
+fi
+
 # Start ngrok in background
 echo "🌐 Starting ngrok..."
-ngrok http 8080 > /tmp/telegram-bot-ngrok.log 2>&1 &
+ngrok http "$DEV_PORT" > /tmp/telegram-bot-ngrok.log 2>&1 &
 NGROK_PID=$!
 echo "   Ngrok PID: $NGROK_PID"
 sleep 4  # Wait for ngrok to start
@@ -87,7 +114,7 @@ echo ""
 echo "✨ Development environment is ready!"
 echo ""
 echo "📊 Status:"
-echo "   Server:  http://localhost:8080"
+echo "   Server:  http://localhost:${DEV_PORT}"
 echo "   Ngrok:   $NGROK_URL"
 echo "   Ngrok UI: http://localhost:4040"
 echo ""
